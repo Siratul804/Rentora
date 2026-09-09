@@ -33,11 +33,10 @@ The goal of Rentora is to combine **rental property management and on-demand mai
 
 ## Technology Stack
 
-- **Frontend:** Next.js, React, TypeScript
-- **Backend:** Fastify, Node.js
+- **Frontend:** Next.js
+- **Backend:** Next.js API Route
 - **Database:** MongoDB
-- **Storage:** Cloudflare R2
-- **Payment:** SSLCommerz, bKash
+- **Payment:** SSLCommerz
 
 ## Project Status
 
