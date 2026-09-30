@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from "react";
@@ -43,7 +44,7 @@ export default function RegisterPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-xl">
+        <div className="bg-white/30 dark:bg-zinc-900/30 backdrop-blur-2xl border border-white/50 dark:border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-zinc-900/10">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
@@ -129,3 +130,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+

@@ -1,0 +1,65 @@
+Index: app/register/page.tsx
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>\"use client\";\r\n\r\nimport { useState } from \"react\";\r\n\r\nexport default function RegisterPage() {\r\n  const [name, setName] = useState(\"\");\r\n  const [phone, setPhone] = useState(\"\");\r\n  const [password, setPassword] = useState(\"\");\r\n  const [confirmPassword, setConfirmPassword] = useState(\"\");\r\n\r\n  const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {\r\n    e.preventDefault();\r\n\r\n    if (password !== confirmPassword) {\r\n      alert(\"Passwords do not match!\");\r\n      return;\r\n    }\r\n\r\n    try {\r\n      const res = await fetch(\"/api/users\", {\r\n        method: \"POST\",\r\n        headers: { \"Content-Type\": \"application/json\" },\r\n        body: JSON.stringify({\r\n          name,\r\n          email: `${phone}@rentora.com`, // temporary until you add email field\r\n          password,\r\n          role: \"tenant\",\r\n        }),\r\n      });\r\n\r\n      const data = await res.json();\r\n\r\n      if (res.ok) {\r\n        alert(\"Registration successful!\");\r\n        // redirect or clear form here\r\n      } else {\r\n        alert(data.error || \"Registration failed\");\r\n      }\r\n    } catch (err) {\r\n      alert(\"Something went wrong. Please try again.\");\r\n    }\r\n  };\r\n\r\n  return (\r\n    <main className=\"min-h-screen flex items-center justify-center bg-gradient-to-br from-[#2C3A1A] to-[#556B2F] px-4 py-8\">\r\n      <div className=\"w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl\">\r\n        <div className=\"text-center mb-6\">\r\n          <h1 className=\"text-4xl font-extrabold text-[#2C3A1A] tracking-tight\">\r\n            Rent<span className=\"text-[#556B2F]\">ora</span>\r\n          </h1>\r\n          <p className=\"text-gray-600 mt-1\">\r\n            Manage properties, tenants, and payments.\r\n          </p>\r\n        </div>\r\n\r\n        <div className=\"border-t border-gray-200 pt-5\">\r\n          <h2 className=\"text-2xl font-bold text-center text-[#1F2933] mb-2\">\r\n            Create Account\r\n          </h2>\r\n          <p className=\"text-gray-500 text-center mb-6\">\r\n            Register to get started with Rentora\r\n          </p>\r\n\r\n          <form onSubmit={handleRegister} className=\"space-y-4\">\r\n            <input\r\n              type=\"text\"\r\n              placeholder=\"Full Name\"\r\n              value={name}\r\n              onChange={(e) => setName(e.target.value)}\r\n              className=\"w-full border border-gray-300 rounded-lg p-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] transition\"\r\n              required\r\n            />\r\n\r\n            <input\r\n              type=\"tel\"\r\n              placeholder=\"Phone Number\"\r\n              value={phone}\r\n              onChange={(e) => setPhone(e.target.value)}\r\n              className=\"w-full border border-gray-300 rounded-lg p-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] transition\"\r\n              required\r\n            />\r\n\r\n            <input\r\n              type=\"password\"\r\n              placeholder=\"Password\"\r\n              value={password}\r\n              onChange={(e) => setPassword(e.target.value)}\r\n              className=\"w-full border border-gray-300 rounded-lg p-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] transition\"\r\n              required\r\n            />\r\n\r\n            <input\r\n              type=\"password\"\r\n              placeholder=\"Confirm Password\"\r\n              value={confirmPassword}\r\n              onChange={(e) => setConfirmPassword(e.target.value)}\r\n              className=\"w-full border border-gray-300 rounded-lg p-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#556B2F] focus:border-[#556B2F] transition\"\r\n              required\r\n            />\r\n\r\n            <button\r\n              type=\"submit\"\r\n              className=\"w-full bg-[#556B2F] text-white py-3 rounded-lg font-semibold hover:bg-[#2C3A1A] transition duration-200 shadow-md\"\r\n            >\r\n              Create Account\r\n            </button>\r\n          </form>\r\n\r\n          <p className=\"text-center text-sm text-gray-600 mt-6\">\r\n            Already have an account?{\" \"}\r\n            <a\r\n              href=\"/login\"\r\n              className=\"text-[#556B2F] font-semibold hover:text-[#2C3A1A] hover:underline\"\r\n            >\r\n              Login\r\n            </a>\r\n          </p>\r\n\r\n          <div className=\"text-center mt-3\">\r\n            <a\r\n              href=\"/forgot-password\"\r\n              className=\"text-sm text-[#556B2F] hover:text-[#2C3A1A] hover:underline\"\r\n            >\r\n              Forgot Password?\r\n            </a>\r\n          </div>\r\n        </div>\r\n      </div>\r\n    </main>\r\n  );\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/app/register/page.tsx b/app/register/page.tsx
+--- a/app/register/page.tsx	(revision bdba71fca586f3b5dc454d04c238bef927cc3018)
++++ b/app/register/page.tsx	(date 1790783890974)
+@@ -1,3 +1,4 @@
++
+ "use client";
+ 
+ import { useState } from "react";
+@@ -22,7 +23,7 @@
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({
+           name,
+-          email: `${phone}@rentora.com`, // temporary until you add email field
++          email: `${phone}@rentora.com`,
+           password,
+           role: "tenant",
+         }),
+@@ -44,24 +45,29 @@
+   return (
+     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#2C3A1A] to-[#556B2F] px-4 py-8">
+       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl">
++
+         <div className="text-center mb-6">
+           <h1 className="text-4xl font-extrabold text-[#2C3A1A] tracking-tight">
+             Rent<span className="text-[#556B2F]">ora</span>
+           </h1>
++
+           <p className="text-gray-600 mt-1">
+             Manage properties, tenants, and payments.
+           </p>
+         </div>
+ 
+         <div className="border-t border-gray-200 pt-5">
++
+           <h2 className="text-2xl font-bold text-center text-[#1F2933] mb-2">
+             Create Account
+           </h2>
++
+           <p className="text-gray-500 text-center mb-6">
+             Register to get started with Rentora
+           </p>
+ 
+           <form onSubmit={handleRegister} className="space-y-4">
++
+             <input
+               type="text"
+               placeholder="Full Name"
+@@ -124,8 +130,10 @@
+               Forgot Password?
+             </a>
+           </div>
++
+         </div>
+       </div>
+     </main>
+   );
+ }
++
