@@ -14,7 +14,10 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4"
+    "@types/node": "26.6.3",
+    "@types/react": "19.3.0",
+    "tailwindcss": "^4",
+    "typescript": "7.0.2"
   },
   "packageManager": "pnpm@10.13.1"
 }
