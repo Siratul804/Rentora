@@ -107,45 +107,20 @@ export function Sidebar({ portal = "owner" }) {
         </nav>
       </div>
 
-      {/* Portal Switcher & Footer */}
+      {/* RBAC Role Indicator & Footer */}
       <div className="p-4 border-t border-zinc-200/80 dark:border-zinc-800/80 space-y-2">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">
-          Switch Portal (Demo)
+        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">
+          <span>Access Level</span>
+          <span className="text-[10px] text-emerald-500 font-bold">RBAC ACTIVE</span>
         </div>
-        <div className="grid grid-cols-3 gap-1">
-          <Link
-            href="/admin/dashboard"
-            className={cn(
-              "text-center py-1.5 text-xs rounded-lg border font-medium transition-colors",
-              portal === "admin"
-                ? "bg-purple-500/15 border-purple-500/40 text-purple-600 dark:text-purple-400 font-semibold"
-                : "border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-            )}
-          >
-            Admin
-          </Link>
-          <Link
-            href="/owner/dashboard"
-            className={cn(
-              "text-center py-1.5 text-xs rounded-lg border font-medium transition-colors",
-              portal === "owner"
-                ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 font-semibold"
-                : "border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-            )}
-          >
-            Owner
-          </Link>
-          <Link
-            href="/tenant/dashboard"
-            className={cn(
-              "text-center py-1.5 text-xs rounded-lg border font-medium transition-colors",
-              portal === "tenant"
-                ? "bg-blue-500/15 border-blue-500/40 text-blue-600 dark:text-blue-400 font-semibold"
-                : "border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-            )}
-          >
-            Tenant
-          </Link>
+        <div className="p-2.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span>{meta.badge === "Admin" ? "👑" : meta.badge === "Landlord" ? "🏢" : "👤"}</span>
+            <span className="font-semibold text-zinc-800 dark:text-zinc-200">{meta.title}</span>
+          </div>
+          <span className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${meta.badgeColor}`}>
+            {meta.badge}
+          </span>
         </div>
       </div>
     </aside>

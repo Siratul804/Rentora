@@ -5,29 +5,51 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { ROLES } from "@/lib/auth";
 
 export function LoginForm() {
   const router = useRouter();
-  const { loginAs } = useAuth();
-  const [email, setEmail] = useState("owner@rentora.com");
-  const [password, setPassword] = useState("••••••••");
-  const [role, setRole] = useState(ROLES.OWNER);
+  const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const destination = loginAs(role);
-    router.push(destination);
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await login(email, password);
+      if (res.success) {
+        router.push(res.redirectUrl);
+        router.refresh();
+      } else {
+        setError(res.error || "Failed to log in. Please check your credentials.");
+      }
+    } catch {
+      setError("An unexpected error occurred. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleQuickLogin = (selectedRole) => {
-    setRole(selectedRole);
-    const destination = loginAs(selectedRole);
-    router.push(destination);
+  const handleQuickFill = (fillEmail, fillPass) => {
+    setEmail(fillEmail);
+    setPassword(fillPass);
+    setError("");
   };
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-5">
+      {error && (
+        <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center gap-2">
+          <span>⚠️</span>
+          <span>{error}</span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           label="Email Address"
@@ -35,6 +57,7 @@ export function LoginForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          autoComplete="email"
           placeholder="name@example.com"
         />
 
@@ -44,85 +67,58 @@ export function LoginForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          placeholder="Enter your password"
+          autoComplete="current-password"
+          placeholder="••••••••"
         />
 
-        <div className="space-y-1.5">
-          <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
-            Select Role
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setRole(ROLES.SUPER_ADMIN)}
-              className={`p-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
-                role === ROLES.SUPER_ADMIN
-                  ? "border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold"
-                  : "border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-zinc-600 dark:text-zinc-400"
-              }`}
-            >
-              👑 Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole(ROLES.OWNER)}
-              className={`p-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
-                role === ROLES.OWNER
-                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold"
-                  : "border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-zinc-600 dark:text-zinc-400"
-              }`}
-            >
-              🏢 Owner
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole(ROLES.TENANT)}
-              className={`p-2.5 rounded-xl border text-xs font-medium text-center transition-all ${
-                role === ROLES.TENANT
-                  ? "border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold"
-                  : "border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-zinc-600 dark:text-zinc-400"
-              }`}
-            >
-              👤 Tenant
-            </button>
-          </div>
-        </div>
-
-        <Button type="submit" className="w-full mt-2" size="lg">
-          Sign In to Portal
+        <Button
+          type="submit"
+          className="w-full mt-2"
+          size="lg"
+          disabled={loading}
+        >
+          {loading ? "Authenticating..." : "Sign In to Portal"}
         </Button>
       </form>
 
-      {/* Quick 1-click test logins */}
-      <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-        <div className="text-xs font-medium text-zinc-500 text-center mb-3">
-          ⚡ 1-Click Demo Login
+      {/* Role explanation & helper */}
+      <div className="pt-4 border-t border-zinc-200/80 dark:border-zinc-800 space-y-3">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 text-center">
+          ⚡ Quick Fill Helper
         </div>
-        <div className="flex flex-col gap-2">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => handleQuickLogin(ROLES.SUPER_ADMIN)}
-            className="flex items-center justify-between px-3 py-2 rounded-xl text-xs border border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 text-purple-600 dark:text-purple-400 transition-colors"
+            onClick={() => handleQuickFill("admin@rentora.com", "admin123456")}
+            className="p-2.5 rounded-xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 text-left transition-colors text-xs"
           >
-            <span>👑 Sign in as <strong>Super Admin</strong></span>
-            <span>→</span>
+            <div className="font-semibold text-purple-600 dark:text-purple-400 flex items-center justify-between">
+              <span>👑 Admin (.env)</span>
+              <span className="text-[10px] text-purple-400">Fill</span>
+            </div>
+            <div className="text-[11px] text-zinc-400 truncate mt-0.5">
+              admin@rentora.com
+            </div>
           </button>
+
           <button
             type="button"
-            onClick={() => handleQuickLogin(ROLES.OWNER)}
-            className="flex items-center justify-between px-3 py-2 rounded-xl text-xs border border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transition-colors"
+            onClick={() => handleQuickFill("owner@rentora.com", "owner123456")}
+            className="p-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-left transition-colors text-xs"
           >
-            <span>🏢 Sign in as <strong>Owner / Landlord</strong></span>
-            <span>→</span>
+            <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
+              <span>🏢 Owner</span>
+              <span className="text-[10px] text-emerald-400">Fill</span>
+            </div>
+            <div className="text-[11px] text-zinc-400 truncate mt-0.5">
+              owner@rentora.com
+            </div>
           </button>
-          <button
-            type="button"
-            onClick={() => handleQuickLogin(ROLES.TENANT)}
-            className="flex items-center justify-between px-3 py-2 rounded-xl text-xs border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors"
-          >
-            <span>👤 Sign in as <strong>Tenant / Renter</strong></span>
-            <span>→</span>
-          </button>
+        </div>
+
+        <div className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center">
+          👤 <strong>Tenants:</strong> Log in using the email and password assigned by your property owner.
         </div>
       </div>
     </div>

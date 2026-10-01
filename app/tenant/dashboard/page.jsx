@@ -7,13 +7,30 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function TenantDashboardPage() {
+  const { user, loading } = useAuth();
+
+  const tenantName = user?.name?.split(" ")[0] || "Resident";
+  const property = user?.property || "Your Property";
+  const unit = user?.unit || "Your Unit";
+
+  if (loading) {
+    return (
+      <DashboardShell portal="tenant" title="Loading...">
+        <div className="flex items-center justify-center h-48 text-zinc-400 text-sm">
+          Loading your dashboard...
+        </div>
+      </DashboardShell>
+    );
+  }
+
   return (
     <DashboardShell
       portal="tenant"
-      title="Welcome Home, Farhan"
-      subtitle="Resident portal for Green Horizon Residency — Unit 4B"
+      title={`Welcome Home, ${tenantName}`}
+      subtitle={`Resident portal for ${property} — ${unit}`}
       actions={
         <Link href="/tenant/payments">
           <Button variant="primary" size="md">
@@ -34,15 +51,15 @@ export default function TenantDashboardPage() {
             </div>
             <div>
               <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
-                Unit 4B (3 Bed / 3 Bath)
+                {unit}
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Green Horizon Residency, Road 11, Dhanmondi
+                {property}
               </p>
             </div>
             <div className="pt-3 border-t border-zinc-200/60 dark:border-zinc-800 text-xs flex justify-between">
-              <span className="text-zinc-500">Landlord:</span>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">Siratul Islam</span>
+              <span className="text-zinc-500">Email:</span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">{user?.email || "—"}</span>
             </div>
           </CardContent>
         </Card>
