@@ -5,20 +5,37 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { ROLES } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [role, setRole] = useState(ROLES.OWNER);
+  const { register } = useAuth();
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // After register, redirect to login
-    router.push("/login");
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await register({ name, email, password, phone });
+      if (res.success) {
+        router.push(res.redirectUrl || "/owner/dashboard");
+        router.refresh();
+      } else {
+        setError(res.error || "Failed to create account. Please try again.");
+      }
+    } catch {
+      setError("An unexpected error occurred during registration.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,43 +52,32 @@ export default function RegisterPage() {
             </span>
           </Link>
           <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
-            Create your account
+            Property Owner Sign Up
           </h1>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-            Join Rentora to streamline rental management and services
+            Create an owner account to manage your properties and onboard tenants
           </p>
         </div>
 
         {/* Card */}
         <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-xl">
+          {error && (
+            <div className="mb-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                I am registering as:
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRole(ROLES.OWNER)}
-                  className={`p-3 rounded-xl border text-xs font-medium text-center transition-all ${
-                    role === ROLES.OWNER
-                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold"
-                      : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
-                  }`}
-                >
-                  🏢 Property Landlord
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole(ROLES.TENANT)}
-                  className={`p-3 rounded-xl border text-xs font-medium text-center transition-all ${
-                    role === ROLES.TENANT
-                      ? "border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-semibold"
-                      : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
-                  }`}
-                >
-                  👤 Tenant / Renter
-                </button>
+            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
+              <span className="text-xl">🏢</span>
+              <div>
+                <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                  Role: Property Owner / Landlord
+                </div>
+                <div className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                  Full control over properties, leases, and tenant onboarding
+                </div>
               </div>
             </div>
 
@@ -88,7 +94,7 @@ export default function RegisterPage() {
               label="Email Address"
               type="email"
               required
-              placeholder="e.g. name@example.com"
+              placeholder="e.g. owner@rentora.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -105,15 +111,34 @@ export default function RegisterPage() {
               label="Create Password"
               type="password"
               required
-              placeholder="At least 8 characters"
+              placeholder="At least 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
 
-            <Button type="submit" className="w-full mt-4" size="lg">
-              Get Started with Rentora
+            <Button
+              type="submit"
+              className="w-full mt-4"
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? "Creating Account..." : "Register as Property Owner"}
             </Button>
           </form>
+
+          {/* Tenant note */}
+          <div className="mt-5 pt-4 border-t border-zinc-200/80 dark:border-zinc-800 text-center text-xs text-zinc-500 dark:text-zinc-400 space-y-1.5">
+            <p>
+              👤 <strong>Are you a Tenant?</strong>
+            </p>
+            <p className="text-[11px] text-zinc-400">
+              Tenants do not register here. Your property owner will create your account and assign your unit. Once created, you can simply{" "}
+              <Link href="/login" className="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">
+                Sign in here
+              </Link>
+              .
+            </p>
+          </div>
         </div>
 
         <p className="text-center text-xs text-zinc-500 dark:text-zinc-400 mt-6">

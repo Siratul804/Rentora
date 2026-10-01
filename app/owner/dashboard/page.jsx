@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -28,11 +29,13 @@ const ACTIVE_MAINTENANCE = [
 ];
 
 export default function OwnerDashboardPage() {
+  const { user } = useAuth();
+  const ownerName = user?.name || "Landlord";
   return (
     <DashboardShell
       portal="owner"
       title="Landlord Dashboard"
-      subtitle="Welcome back, Siratul Islam. Here is your portfolio performance summary."
+      subtitle={`Welcome back, ${ownerName}. Here is your portfolio performance summary.`}
       actions={
         <div className="flex items-center gap-2">
           <Link href="/owner/invoices">

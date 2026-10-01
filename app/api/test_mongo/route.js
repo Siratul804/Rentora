@@ -3,17 +3,28 @@ import User from "@/lib/models/User";
 import { NextResponse } from "next/server";
 
 export async function GET() {
-    try {
-        await dbConnect();
+  try {
+    const conn = await dbConnect();
+    const dbName = conn.connection.name;
 
-        // Create sample user
-        const newUser = await User.create({ name: "Test User", email: "test@rentora.com", phone: "1234567890" });
+    // Count existing users
+    const userCount = await User.countDocuments();
+    const users = await User.find({}, { passwordHash: 0 }).limit(10).lean();
 
-        // Read back
-        const users = await User.find();
-
-        return NextResponse.json({ message: "✅ MongoDB Connected Successfully!", users });
-    } catch (err) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
-    }
+    return NextResponse.json({
+      success: true,
+      message: "✅ MongoDB Connected Successfully!",
+      database: dbName,
+      userCount,
+      users,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: err.message,
+      },
+      { status: 500 }
+    );
+  }
 }
