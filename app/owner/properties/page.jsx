@@ -235,11 +235,10 @@ export default function OwnerPropertiesPage() {
             return (
               <Card
                 key={prop.id}
-                className={`cursor-pointer transition-all hover:border-emerald-500/50 ${
-                  isSelected
-                    ? "border-emerald-500 ring-1 ring-emerald-500/50 shadow-md"
-                    : ""
-                }`}
+                className={`cursor-pointer transition-all hover:border-emerald-500/50 ${isSelected
+                  ? "border-emerald-500 ring-1 ring-emerald-500/50 shadow-md"
+                  : ""
+                  }`}
                 onClick={() => setSelectedProperty(prop)}
               >
                 <CardHeader>
@@ -312,68 +311,7 @@ export default function OwnerPropertiesPage() {
         </div>
       )}
 
-      {/* Selected Property Unit Breakdown */}
-      {activeProperty && (
-        <Card className="mt-6">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>{activeProperty.name} — Unit Directory</CardTitle>
-              <p className="text-xs text-zinc-500 mt-0.5">{activeProperty.address}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleOpenEditModal(activeProperty)}
-              >
-                Edit Property
-              </Button>
-              <Button size="sm" variant="outline">
-                + Add Unit to Building
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 dark:bg-zinc-900 text-zinc-500 uppercase font-semibold border-b border-zinc-100 dark:border-zinc-800">
-                  <tr>
-                    <th className="px-5 py-3">Unit #</th>
-                    <th className="px-5 py-3">Bed / Bath</th>
-                    <th className="px-5 py-3">Current Tenant</th>
-                    <th className="px-5 py-3">Monthly Rent</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {[
-                    { unit: "Unit 1A", beds: "3 Bed / 2 Bath", tenant: "Tanvir Rahman", rent: 25000, status: "Occupied" },
-                    { unit: "Unit 2A", beds: "3 Bed / 2 Bath", tenant: "Nabila Tabassum", rent: 28000, status: "Occupied" },
-                    { unit: "Unit 3B", beds: "2 Bed / 1 Bath", tenant: "Vacant (Available)", rent: 22000, status: "Vacant" },
-                    { unit: "Unit 4B", beds: "3 Bed / 3 Bath", tenant: "Farhan Ahmed", rent: 32000, status: "Occupied" },
-                  ].map((u, i) => (
-                    <tr key={i} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
-                      <td className="px-5 py-3.5 font-bold text-zinc-900 dark:text-zinc-100">{u.unit}</td>
-                      <td className="px-5 py-3.5 text-zinc-500">{u.beds}</td>
-                      <td className="px-5 py-3.5 font-medium">{u.tenant}</td>
-                      <td className="px-5 py-3.5 font-semibold text-zinc-900 dark:text-zinc-100">{formatCurrency(u.rent)}</td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant={u.status === "Occupied" ? "success" : "neutral"} size="sm">
-                          {u.status}
-                        </Badge>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Property Modal (Create & Edit) */}
       {modalOpen && (
@@ -497,8 +435,8 @@ export default function OwnerPropertiesPage() {
                       ? "Saving Changes..."
                       : "Adding Property..."
                     : editingProperty
-                    ? "Save Changes"
-                    : "Add Property"}
+                      ? "Save Changes"
+                      : "Add Property"}
                 </Button>
               </div>
             </form>
