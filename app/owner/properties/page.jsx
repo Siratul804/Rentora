@@ -49,11 +49,12 @@ export default function OwnerPropertiesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // New Property Form State
+  // Property Form State
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -100,9 +101,10 @@ export default function OwnerPropertiesPage() {
     fetchProperties();
   }, [fetchProperties]);
 
-  const handleOpenModal = () => {
+  const handleOpenCreateModal = () => {
     setFormError("");
     setSuccessMessage("");
+    setEditingProperty(null);
     setFormData({
       name: "",
       address: "",
@@ -113,7 +115,21 @@ export default function OwnerPropertiesPage() {
     setModalOpen(true);
   };
 
-  const handleCreateProperty = async (e) => {
+  const handleOpenEditModal = (prop) => {
+    setFormError("");
+    setSuccessMessage("");
+    setEditingProperty(prop);
+    setFormData({
+      name: prop.name || "",
+      address: prop.address || "",
+      type: prop.type || "Apartment",
+      totalUnits: String(prop.totalUnits || "1"),
+      status: prop.status || "Active",
+    });
+    setModalOpen(true);
+  };
+
+  const handleSubmitProperty = async (e) => {
     e.preventDefault();
     setFormError("");
     setSubmitting(true);
@@ -127,14 +143,37 @@ export default function OwnerPropertiesPage() {
         status: formData.status,
       };
 
-      const data = await propertiesApi.create(payload);
+      if (editingProperty) {
+        if (editingProperty.id && editingProperty.id.length === 24) {
+          const data = await propertiesApi.update(editingProperty.id, payload);
+          setSuccessMessage(`Property "${data.property.name}" updated successfully!`);
+        } else {
+          // Fallback update for starter mock items
+          setProperties((prev) =>
+            prev.map((item) =>
+              item.id === editingProperty.id
+                ? { ...item, ...payload, monthlyYield: payload.totalUnits * 25000 }
+                : item
+            )
+          );
+          setSelectedProperty((prev) =>
+            prev?.id === editingProperty.id
+              ? { ...prev, ...payload, monthlyYield: payload.totalUnits * 25000 }
+              : prev
+          );
+          setSuccessMessage(`Property "${payload.name}" updated successfully!`);
+        }
+      } else {
+        const data = await propertiesApi.create(payload);
+        setSuccessMessage(`Property "${data.property.name}" added successfully!`);
+      }
 
-      setSuccessMessage(`Property "${data.property.name}" added successfully!`);
       setModalOpen(false);
+      setEditingProperty(null);
       await fetchProperties();
     } catch (err) {
-      console.error("Error creating property:", err);
-      setFormError(err.message || "Failed to create property.");
+      console.error("Error saving property:", err);
+      setFormError(err.message || "Failed to save property.");
     } finally {
       setSubmitting(false);
     }
@@ -160,7 +199,7 @@ export default function OwnerPropertiesPage() {
       title="Properties & Units"
       subtitle="Manage your real estate portfolio, unit inventory, and rent allocations"
       actions={
-        <Button variant="primary" size="md" onClick={handleOpenModal}>
+        <Button variant="primary" size="md" onClick={handleOpenCreateModal}>
           + Add New Property
         </Button>
       }
@@ -196,11 +235,10 @@ export default function OwnerPropertiesPage() {
             return (
               <Card
                 key={prop.id}
-                className={`cursor-pointer transition-all hover:border-emerald-500/50 ${
-                  isSelected
-                    ? "border-emerald-500 ring-1 ring-emerald-500/50 shadow-md"
-                    : ""
-                }`}
+                className={`cursor-pointer transition-all hover:border-emerald-500/50 ${isSelected
+                  ? "border-emerald-500 ring-1 ring-emerald-500/50 shadow-md"
+                  : ""
+                  }`}
                 onClick={() => setSelectedProperty(prop)}
               >
                 <CardHeader>
@@ -239,19 +277,32 @@ export default function OwnerPropertiesPage() {
                         {totalUnits} Units
                       </span>
                     </div>
-                    {prop.id.length === 24 && (
+                    <div className="flex items-center gap-1">
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-rose-600 hover:text-rose-700 text-xs px-2 h-7"
+                        className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-xs px-2.5 h-7 font-medium"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteProperty(prop.id, prop.name);
+                          handleOpenEditModal(prop);
                         }}
                       >
-                        Delete
+                        Edit
                       </Button>
-                    )}
+                      {prop.id.length === 24 && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs px-2.5 h-7 font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteProperty(prop.id, prop.name);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -260,76 +311,29 @@ export default function OwnerPropertiesPage() {
         </div>
       )}
 
-      {/* Selected Property Unit Breakdown */}
-      {activeProperty && (
-        <Card className="mt-6">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>{activeProperty.name} — Unit Directory</CardTitle>
-              <p className="text-xs text-zinc-500 mt-0.5">{activeProperty.address}</p>
-            </div>
-            <Button size="sm" variant="outline">
-              + Add Unit to Building
-            </Button>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-zinc-50 dark:bg-zinc-900 text-zinc-500 uppercase font-semibold border-b border-zinc-100 dark:border-zinc-800">
-                  <tr>
-                    <th className="px-5 py-3">Unit #</th>
-                    <th className="px-5 py-3">Bed / Bath</th>
-                    <th className="px-5 py-3">Current Tenant</th>
-                    <th className="px-5 py-3">Monthly Rent</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                  {[
-                    { unit: "Unit 1A", beds: "3 Bed / 2 Bath", tenant: "Tanvir Rahman", rent: 25000, status: "Occupied" },
-                    { unit: "Unit 2A", beds: "3 Bed / 2 Bath", tenant: "Nabila Tabassum", rent: 28000, status: "Occupied" },
-                    { unit: "Unit 3B", beds: "2 Bed / 1 Bath", tenant: "Vacant (Available)", rent: 22000, status: "Vacant" },
-                    { unit: "Unit 4B", beds: "3 Bed / 3 Bath", tenant: "Farhan Ahmed", rent: 32000, status: "Occupied" },
-                  ].map((u, i) => (
-                    <tr key={i} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30">
-                      <td className="px-5 py-3.5 font-bold text-zinc-900 dark:text-zinc-100">{u.unit}</td>
-                      <td className="px-5 py-3.5 text-zinc-500">{u.beds}</td>
-                      <td className="px-5 py-3.5 font-medium">{u.tenant}</td>
-                      <td className="px-5 py-3.5 font-semibold text-zinc-900 dark:text-zinc-100">{formatCurrency(u.rent)}</td>
-                      <td className="px-5 py-3.5">
-                        <Badge variant={u.status === "Occupied" ? "success" : "neutral"} size="sm">
-                          {u.status}
-                        </Badge>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <Button size="sm" variant="ghost">Edit</Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Add New Property Modal */}
+
+      {/* Property Modal (Create & Edit) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800">
               <div>
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                  Add New Property
+                  {editingProperty ? "Edit Property" : "Add New Property"}
                 </h2>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Register a new building or property in your portfolio
+                  {editingProperty
+                    ? `Update configuration and details for ${editingProperty.name}`
+                    : "Register a new building or property in your portfolio"}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
+                onClick={() => {
+                  setModalOpen(false);
+                  setEditingProperty(null);
+                }}
                 className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 ✕
@@ -342,7 +346,7 @@ export default function OwnerPropertiesPage() {
               </div>
             )}
 
-            <form onSubmit={handleCreateProperty} className="space-y-4 mt-4">
+            <form onSubmit={handleSubmitProperty} className="space-y-4 mt-4">
               <div>
                 <Input
                   label="Property Name *"
@@ -413,7 +417,10 @@ export default function OwnerPropertiesPage() {
                   type="button"
                   variant="outline"
                   size="md"
-                  onClick={() => setModalOpen(false)}
+                  onClick={() => {
+                    setModalOpen(false);
+                    setEditingProperty(null);
+                  }}
                 >
                   Cancel
                 </Button>
@@ -423,7 +430,13 @@ export default function OwnerPropertiesPage() {
                   size="md"
                   disabled={submitting}
                 >
-                  {submitting ? "Adding Property..." : "Add Property"}
+                  {submitting
+                    ? editingProperty
+                      ? "Saving Changes..."
+                      : "Adding Property..."
+                    : editingProperty
+                      ? "Save Changes"
+                      : "Add Property"}
                 </Button>
               </div>
             </form>
