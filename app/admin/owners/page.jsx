@@ -1,67 +1,120 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable } from "@/components/tables/DataTable";
 
-const OWNERS_DATA = [
-  { id: "1", name: "Siratul Islam", email: "siratul@rentora.com", phone: "+880 1711-223344", properties: 6, units: 24, plan: "Enterprise", status: "Active", joined: "2026-01-15" },
-  { id: "2", name: "Ahmed Zubair", email: "zubair.realty@gmail.com", phone: "+880 1812-998877", properties: 4, units: 16, plan: "Growth", status: "Active", joined: "2026-02-01" },
-  { id: "3", name: "Mariam Sultana", email: "mariam.props@outlook.com", phone: "+880 1913-445566", properties: 1, units: 4, plan: "Starter", status: "Pending Verification", joined: "2026-03-10" },
-  { id: "4", name: "Rashid Chowdhury", email: "rashid@ctgproperties.com", phone: "+880 1614-778899", properties: 3, units: 12, plan: "Growth", status: "Active", joined: "2026-02-20" },
-  { id: "5", name: "Tanvir Hasan", email: "tanvir.holding@gmail.com", phone: "+880 1515-332211", properties: 2, units: 8, plan: "Starter", status: "Suspended", joined: "2025-11-05" },
-];
-
 export default function AdminOwnersPage() {
+  const [owners, setOwners] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const filteredOwners = OWNERS_DATA.filter((o) =>
-    o.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    o.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Get owners from Admin API
+  useEffect(() => {
+  fetch("/api/admin/owner")
+    .then((res) => res.json())
+    .then((data) => {
+      console.log("OWNER API DATA:", data);
+
+      if (data.success) {
+        setOwners(data.owners);
+      } else {
+        setError(data.message || "Failed to load owners");
+      }
+    })
+    .catch((err) => {
+      console.error("OWNER API ERROR:", err);
+      setError("Failed to load owners");
+    })
+    .finally(() => {
+      setLoading(false);
+    });
+}, []);
+
+  // Search owners
+  const filteredOwners = owners.filter((owner) => {
+    const name = owner.name?.toLowerCase() || "";
+    const email = owner.email?.toLowerCase() || "";
+    const search = searchTerm.toLowerCase();
+
+    return name.includes(search) || email.includes(search);
+  });
 
   const columns = [
     {
       header: "Landlord / Owner",
       accessor: (row) => (
         <div>
-          <div className="font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</div>
-          <div className="text-xs text-zinc-400">{row.email}</div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
+            {row.name}
+          </div>
+
+          <div className="text-xs text-zinc-400">
+            {row.email}
+          </div>
         </div>
       ),
     },
+
     {
       header: "Phone",
-      accessor: "phone",
+      accessor: (row) => row.phone || "—",
     },
+
     {
       header: "Portfolio",
       accessor: (row) => (
         <span className="text-xs font-medium">
-          {row.properties} Properties ({row.units} units)
+          {row.properties ?? "—"} Properties
+          {row.units !== undefined ? ` (${row.units} units)` : ""}
         </span>
       ),
     },
+
     {
       header: "Plan",
       accessor: (row) => (
-        <Badge variant={row.plan === "Enterprise" ? "purple" : row.plan === "Growth" ? "info" : "neutral"}>
-          {row.plan}
+        <Badge
+          variant={
+            row.plan === "Enterprise"
+              ? "purple"
+              : row.plan === "Growth"
+                ? "info"
+                : "neutral"
+          }
+        >
+          {row.plan || "—"}
         </Badge>
       ),
     },
+
     {
       header: "Status",
       accessor: (row) => (
-        <Badge variant={row.status === "Active" ? "success" : row.status === "Suspended" ? "danger" : "warning"}>
-          {row.status}
+        <Badge
+          variant={
+            row.status === "Active"
+              ? "success"
+              : row.status === "Suspended"
+                ? "danger"
+                : "warning"
+          }
+        >
+          {row.status || "—"}
         </Badge>
       ),
     },
+
     {
       header: "Actions",
       accessor: (row) => (
@@ -69,7 +122,11 @@ export default function AdminOwnersPage() {
           <Button size="sm" variant="outline">
             Inspect
           </Button>
-          <Button size="sm" variant={row.status === "Active" ? "ghost" : "primary"}>
+
+          <Button
+            size="sm"
+            variant={row.status === "Active" ? "ghost" : "primary"}
+          >
             {row.status === "Active" ? "Manage" : "Approve"}
           </Button>
         </div>
@@ -91,7 +148,10 @@ export default function AdminOwnersPage() {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle>All Landlords ({filteredOwners.length})</CardTitle>
+            <CardTitle>
+              All Landlords ({filteredOwners.length})
+            </CardTitle>
+
             <div className="w-full sm:w-64">
               <Input
                 placeholder="Search owner name or email..."
@@ -101,8 +161,26 @@ export default function AdminOwnersPage() {
             </div>
           </div>
         </CardHeader>
+
         <CardContent className="p-0">
-          <DataTable columns={columns} data={filteredOwners} />
+          {loading ? (
+            <div className="p-6 text-center text-zinc-500">
+              Loading owners...
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center text-red-500">
+              {error}
+            </div>
+          ) : filteredOwners.length === 0 ? (
+            <div className="p-6 text-center text-zinc-500">
+              No owners found.
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filteredOwners}
+            />
+          )}
         </CardContent>
       </Card>
     </DashboardShell>
