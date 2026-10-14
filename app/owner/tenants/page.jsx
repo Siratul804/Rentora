@@ -25,6 +25,8 @@ export default function OwnerTenantsPage() {
     phone: "",
     property: "Green Horizon Residency",
     unit: "Unit 101",
+    rentAmount: "32000",
+    deposit: "64000",
     leaseEnd: "2027-12-31",
     rentStatus: "Pending",
   });
@@ -60,6 +62,8 @@ export default function OwnerTenantsPage() {
       phone: "",
       property: "Green Horizon Residency",
       unit: "Unit " + Math.floor(10 + Math.random() * 80) + "A",
+      rentAmount: "32000",
+      deposit: "64000",
       leaseEnd: "2027-12-31",
       rentStatus: "Pending",
     });
@@ -151,12 +155,19 @@ export default function OwnerTenantsPage() {
     {
       header: "Rent Status",
       accessor: (row) => (
-        <Badge
-          variant={row.rentStatus === "Paid" ? "success" : row.rentStatus === "Overdue" ? "danger" : "warning"}
-          size="sm"
-        >
-          {row.rentStatus}
-        </Badge>
+        <div>
+          <Badge
+            variant={row.rentStatus === "Paid" ? "success" : row.rentStatus === "Overdue" ? "danger" : "warning"}
+            size="sm"
+          >
+            {row.rentStatus}
+          </Badge>
+          {row.rentAmount > 0 && (
+            <div className="text-[11px] text-zinc-500 font-medium mt-0.5">
+              ৳ {Number(row.rentAmount).toLocaleString()}
+            </div>
+          )}
+        </div>
       ),
     },
     {
@@ -355,6 +366,23 @@ export default function OwnerTenantsPage() {
                   placeholder="e.g. Unit 4B"
                   value={formData.unit}
                   onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Monthly Rent (৳)"
+                  type="number"
+                  placeholder="32000"
+                  value={formData.rentAmount}
+                  onChange={(e) => setFormData({ ...formData, rentAmount: e.target.value })}
+                />
+                <Input
+                  label="Security Deposit (৳)"
+                  type="number"
+                  placeholder="64000"
+                  value={formData.deposit}
+                  onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
                 />
               </div>
 

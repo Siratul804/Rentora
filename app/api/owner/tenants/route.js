@@ -37,7 +37,10 @@ export async function GET() {
         phone: t.phone || "—",
         property: t.property || "Not Assigned",
         unit: t.unit || "Not Assigned",
+        rentAmount: t.rentAmount || 0,
+        deposit: t.deposit || 0,
         rentStatus: t.rentStatus || "Pending",
+        leaseStart: t.leaseStart || "—",
         leaseEnd: t.leaseEnd || "—",
         createdAt: t.createdAt,
       })),
@@ -63,7 +66,19 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { name, email, password, phone, property, unit, rentStatus, leaseEnd } = body;
+    const {
+      name,
+      email,
+      password,
+      phone,
+      property,
+      unit,
+      rentStatus,
+      leaseEnd,
+      leaseStart,
+      rentAmount,
+      deposit,
+    } = body;
 
     // Validation
     if (!name || !email || !password) {
@@ -111,7 +126,10 @@ export async function POST(request) {
       phone: phone ? phone.trim() : "",
       property: property ? property.trim() : "Main Property",
       unit: unit ? unit.trim() : "General Unit",
+      rentAmount: Number(rentAmount) || 0,
+      deposit: Number(deposit) || 0,
       rentStatus: rentStatus || "Pending",
+      leaseStart: leaseStart ? leaseStart.trim() : "",
       leaseEnd: leaseEnd ? leaseEnd.trim() : "",
       createdBy: session.id !== "owner-1" ? session.id : null,
     });
@@ -127,7 +145,10 @@ export async function POST(request) {
           phone: newTenant.phone,
           property: newTenant.property,
           unit: newTenant.unit,
+          rentAmount: newTenant.rentAmount,
+          deposit: newTenant.deposit,
           rentStatus: newTenant.rentStatus,
+          leaseStart: newTenant.leaseStart,
           leaseEnd: newTenant.leaseEnd,
           createdAt: newTenant.createdAt,
         },
