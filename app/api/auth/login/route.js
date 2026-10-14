@@ -70,6 +70,13 @@ export async function POST(request) {
       );
     }
 
+    if (user.isActive === false) {
+      return NextResponse.json(
+        { error: "Your account has been deactivated. Please contact your property owner or administrator." },
+        { status: 403 }
+      );
+    }
+
     const userPayload = {
       id: user._id.toString(),
       email: user.email,
