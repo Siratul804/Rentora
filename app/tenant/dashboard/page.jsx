@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -8,15 +8,35 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { tenantRentalApi } from "@/lib/api";
 
 export default function TenantDashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [rental, setRental] = useState(null);
+
+  useEffect(() => {
+    async function loadRental() {
+      try {
+        const data = await tenantRentalApi.getRentalInfo();
+        if (data?.rental) {
+          setRental(data.rental);
+        }
+      } catch (err) {
+        console.error("Dashboard rental fetch error:", err);
+      }
+    }
+    if (user?.role === "tenant") {
+      loadRental();
+    }
+  }, [user]);
 
   const tenantName = user?.name?.split(" ")[0] || "Resident";
-  const property = user?.property || "Your Property";
-  const unit = user?.unit || "Your Unit";
+  const property = rental?.property?.name || user?.property || "Your Property";
+  const unit = rental?.unit || user?.unit || "Your Unit";
+  const monthlyRent = rental?.financials?.monthlyRent || 34500;
+  const rentStatus = rental?.financials?.rentStatus || user?.rentStatus || "Pending";
 
-  if (loading) {
+  if (authLoading) {
     return (
       <DashboardShell portal="tenant" title="Loading...">
         <div className="flex items-center justify-center h-48 text-zinc-400 text-sm">
@@ -45,7 +65,7 @@ export default function TenantDashboardPage() {
           <CardContent className="p-6 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full">
-                Active Tenancy
+                {rental?.status || "Active Tenancy"}
               </span>
               <span className="text-xl">🏠</span>
             </div>
@@ -73,10 +93,11 @@ export default function TenantDashboardPage() {
               <span className="text-xl">💰</span>
             </div>
             <div className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">
-              {formatCurrency(34500)}
+              {formatCurrency(monthlyRent)}
             </div>
-            <div className="text-xs text-zinc-500">
-              Due on: <strong className="text-zinc-800 dark:text-zinc-200">October 05, 2026</strong>
+            <div className="text-xs text-zinc-500 flex items-center justify-between">
+              <span>Status: <strong className={rentStatus === "Paid" ? "text-emerald-600" : rentStatus === "Overdue" ? "text-rose-600" : "text-amber-600"}>{rentStatus}</strong></span>
+              <span className="text-zinc-400">Due: 5th of Month</span>
             </div>
             <div className="pt-2">
               <Link href="/tenant/payments">
