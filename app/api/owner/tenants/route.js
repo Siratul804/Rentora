@@ -39,6 +39,7 @@ export async function GET() {
         unit: t.unit || "Not Assigned",
         rentStatus: t.rentStatus || "Pending",
         leaseEnd: t.leaseEnd || "—",
+        isActive: t.isActive !== false,
         createdAt: t.createdAt,
       })),
     });
@@ -129,6 +130,7 @@ export async function POST(request) {
           unit: newTenant.unit,
           rentStatus: newTenant.rentStatus,
           leaseEnd: newTenant.leaseEnd,
+          isActive: newTenant.isActive !== false,
           createdAt: newTenant.createdAt,
         },
       },
