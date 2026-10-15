@@ -266,32 +266,44 @@ export default function OwnerTenantsPage() {
   const columns = [
     {
       header: "Tenant",
+      className: "min-w-[220px]",
       accessor: (row) => (
         <div>
-          <div className="font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</div>
-          <div className="text-xs text-zinc-400">{row.email}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</span>
+            {row.isActive === false && (
+              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                Inactive
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{row.email}</div>
         </div>
       ),
     },
     {
       header: "Assigned Unit",
+      className: "min-w-[180px]",
       accessor: (row) => (
         <div>
-          <div className="font-medium text-zinc-800 dark:text-zinc-200">{row.unit}</div>
-          <div className="text-[11px] text-zinc-400">{row.property}</div>
+          <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{row.unit}</div>
+          <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{row.property}</div>
         </div>
       ),
     },
     {
       header: "Phone",
+      className: "whitespace-nowrap",
       accessor: (row) => row.phone || "—",
     },
     {
       header: "Lease Expiry",
+      className: "whitespace-nowrap",
       accessor: (row) => row.leaseEnd || "—",
     },
     {
       header: "Rent Status",
+      className: "whitespace-nowrap",
       accessor: (row) => (
         <div>
           <Badge
@@ -333,6 +345,7 @@ export default function OwnerTenantsPage() {
     },
     {
       header: "Actions",
+      className: "min-w-[260px]",
       accessor: (row) => (
         <div className="flex items-center gap-1">
           <Button
