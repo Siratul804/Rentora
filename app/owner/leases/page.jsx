@@ -2,10 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { DataTable } from "@/components/tables/DataTable";
 import { formatCurrency } from "@/lib/utils";
 import { leasesApi, propertiesApi } from "@/lib/api";
@@ -58,11 +54,10 @@ export default function OwnerLeasesPage() {
       if (data?.leases && data.leases.length > 0) {
         setLeases(data.leases);
       } else {
-        console.log("no lease")
+        console.log("no lease");
       }
     } catch (err) {
       console.error("Failed to fetch leases from API, showing starter leases:", err);
-
     } finally {
       setLoading(false);
     }
@@ -112,7 +107,8 @@ export default function OwnerLeasesPage() {
       deposit: "60000",
       billingCycle: "1st - 5th Monthly",
       status: "Active",
-      terms: "1. Premises reserved strictly for private residential occupancy.\n2. Two months prior written notice required for termination.\n3. Security deposit refundable upon end of term inspection.",
+      terms:
+        "1. Premises reserved strictly for private residential occupancy.\n2. Two months prior written notice required for termination.\n3. Security deposit refundable upon end of term inspection.",
       notes: "",
     });
     setIsCreateOpen(true);
@@ -180,7 +176,6 @@ export default function OwnerLeasesPage() {
       await fetchLeases();
     } catch (err) {
       console.error("Create lease error:", err);
-      // If offline or dev fallback, update local state
       if (err.message && !err.message.includes("401") && !err.message.includes("403")) {
         const fallbackLease = {
           id: "lease-" + Date.now(),
@@ -244,19 +239,18 @@ export default function OwnerLeasesPage() {
       await fetchLeases();
     } catch (err) {
       console.error("Edit lease error:", err);
-      // Fallback local update
       setLeases((prev) =>
         prev.map((item) =>
-          (item.id === activeLease.id || item.leaseId === activeLease.leaseId)
+          item.id === activeLease.id || item.leaseId === activeLease.leaseId
             ? {
-              ...item,
-              ...formData,
-              tenant: formData.tenantName,
-              property: formData.unit ? `${formData.propertyName} (${formData.unit})` : formData.propertyName,
-              rent: Number(formData.rent),
-              deposit: Number(formData.deposit || 0),
-              terms: formData.terms ? formData.terms.split("\n") : [],
-            }
+                ...item,
+                ...formData,
+                tenant: formData.tenantName,
+                property: formData.unit ? `${formData.propertyName} (${formData.unit})` : formData.propertyName,
+                rent: Number(formData.rent),
+                deposit: Number(formData.deposit || 0),
+                terms: formData.terms ? formData.terms.split("\n") : [],
+              }
             : item
         )
       );
@@ -271,7 +265,13 @@ export default function OwnerLeasesPage() {
   // Delete Lease
   const handleDeleteLease = async (lease) => {
     const agreementName = lease.leaseId || lease.id;
-    if (!window.confirm(`Are you sure you want to delete Lease Agreement "${agreementName}" for ${lease.tenant || lease.tenantName}? This action cannot be undone.`)) {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete Lease Agreement "${agreementName}" for ${
+          lease.tenant || lease.tenantName
+        }? This action cannot be undone.`
+      )
+    ) {
       return;
     }
 
@@ -282,7 +282,6 @@ export default function OwnerLeasesPage() {
       await fetchLeases();
     } catch (err) {
       console.error("Delete lease error:", err);
-      // Local fallback removal
       setLeases((prev) => prev.filter((item) => item.id !== lease.id && item.leaseId !== lease.leaseId));
       setFeedbackMessage(`Lease Agreement "${agreementName}" removed.`);
     }
@@ -292,8 +291,7 @@ export default function OwnerLeasesPage() {
   const filteredLeases = useMemo(() => {
     return leases.filter((lease) => {
       const matchesStatus =
-        statusFilter === "All" ||
-        (lease.status || "Active").toLowerCase() === statusFilter.toLowerCase();
+        statusFilter === "All" || (lease.status || "Active").toLowerCase() === statusFilter.toLowerCase();
 
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
@@ -323,14 +321,14 @@ export default function OwnerLeasesPage() {
       header: "Lease ID & Tenant",
       accessor: (row) => (
         <div>
-          <div className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {row.tenant || row.tenantName}
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+            <span>{row.tenant || row.tenantName}</span>
           </div>
-          <div className="text-xs text-zinc-400 font-mono">
+          <div className="text-xs text-zinc-500 dark:text-zinc-400 font-mono mt-0.5">
             Agreement #{row.leaseId || row.id}
           </div>
           {row.tenantEmail && (
-            <div className="text-[11px] text-zinc-400 mt-0.5">{row.tenantEmail}</div>
+            <div className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-0.5">{row.tenantEmail}</div>
           )}
         </div>
       ),
@@ -343,7 +341,7 @@ export default function OwnerLeasesPage() {
             {row.propertyName || row.property}
           </div>
           {row.unit && (
-            <span className="inline-block px-1.5 py-0.5 mt-0.5 text-[11px] rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+            <span className="inline-flex items-center px-2 py-0.5 mt-1 text-[11px] rounded-lg bg-zinc-200/60 dark:bg-white/10 text-zinc-700 dark:text-zinc-300 backdrop-blur-sm border border-zinc-300/40 dark:border-white/10 font-medium">
               {row.unit}
             </span>
           )}
@@ -353,8 +351,9 @@ export default function OwnerLeasesPage() {
     {
       header: "Term Period",
       accessor: (row) => (
-        <span className="text-xs font-mono">
-          {row.startDate} → <strong className="text-zinc-900 dark:text-zinc-100">{row.endDate}</strong>
+        <span className="text-xs font-mono text-zinc-600 dark:text-zinc-300">
+          {row.startDate} <span className="text-zinc-400">→</span>{" "}
+          <strong className="text-zinc-900 dark:text-zinc-100 font-semibold">{row.endDate}</strong>
         </span>
       ),
     },
@@ -362,15 +361,17 @@ export default function OwnerLeasesPage() {
       header: "Monthly Rent",
       accessor: (row) => (
         <div>
-          <strong className="text-zinc-900 dark:text-zinc-100">{formatCurrency(row.rent)}</strong>
-          <div className="text-[10px] text-zinc-400">{row.billingCycle || "Monthly"}</div>
+          <strong className="text-zinc-900 dark:text-zinc-100 font-semibold text-sm">
+            {formatCurrency(row.rent)}
+          </strong>
+          <div className="text-[10px] text-zinc-400 uppercase tracking-wider">{row.billingCycle || "Monthly"}</div>
         </div>
       ),
     },
     {
       header: "Security Deposit",
       accessor: (row) => (
-        <span className="text-zinc-700 dark:text-zinc-300 font-medium">
+        <span className="text-zinc-700 dark:text-zinc-300 font-medium text-sm">
           {formatCurrency(row.deposit || 0)}
         </span>
       ),
@@ -379,16 +380,31 @@ export default function OwnerLeasesPage() {
       header: "Status",
       accessor: (row) => {
         const st = row.status || "Active";
-        const variantMap = {
-          Active: "success",
-          Pending: "warning",
-          Expired: "neutral",
-          Terminated: "danger",
+        const badgeStyles = {
+          Active: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.15)]",
+          Pending: "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.15)]",
+          Expired: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30",
+          Terminated: "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.15)]",
         };
         return (
-          <Badge variant={variantMap[st] || "neutral"} size="sm">
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium backdrop-blur-md border ${
+              badgeStyles[st] || badgeStyles.Expired
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                st === "Active"
+                  ? "bg-emerald-500 animate-pulse"
+                  : st === "Pending"
+                  ? "bg-amber-500"
+                  : st === "Terminated"
+                  ? "bg-rose-500"
+                  : "bg-zinc-400"
+              }`}
+            />
             {st}
-          </Badge>
+          </span>
         );
       },
     },
@@ -397,209 +413,276 @@ export default function OwnerLeasesPage() {
       className: "text-right",
       accessor: (row) => (
         <div className="flex items-center justify-end gap-1.5">
-          <Button
-            size="sm"
-            variant="ghost"
+          <button
             onClick={() => handleOpenViewModal(row)}
-            title="View Details"
+            className="px-2.5 py-1 text-xs font-medium rounded-lg text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10 transition-all duration-200 shadow-sm"
           >
             View
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
+          </button>
+          <button
             onClick={() => handleOpenEditModal(row)}
-            title="Edit Agreement"
+            className="px-2.5 py-1 text-xs font-medium rounded-lg text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 backdrop-blur-sm border border-emerald-500/20 transition-all duration-200 shadow-sm"
           >
             Edit
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-rose-600 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+          </button>
+          <button
             onClick={() => handleDeleteLease(row)}
-            title="Delete Agreement"
+            className="px-2.5 py-1 text-xs font-medium rounded-lg text-rose-600 dark:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 backdrop-blur-sm border border-rose-500/20 transition-all duration-200 shadow-sm"
           >
             Delete
-          </Button>
+          </button>
         </div>
       ),
     },
   ];
 
   return (
-    <DashboardShell
-      portal="owner"
-      title="Lease Agreements"
-      subtitle="Digital rental contracts, deposit escrow, and automated lease lifecycle management"
-      actions={
-        <Button variant="primary" size="md" onClick={handleOpenCreateModal}>
-          + Draft New Lease
-        </Button>
-      }
-    >
-      {/* Feedback Alert */}
-      {feedbackMessage && (
-        <div className="mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center justify-between">
-          <span>{feedbackMessage}</span>
-          <button
-            onClick={() => setFeedbackMessage("")}
-            className="text-emerald-600 hover:text-emerald-800 font-bold ml-4"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4">
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Total Agreements</span>
-          <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mt-1">
-            {stats.totalCount}
-          </div>
-          <span className="text-[11px] text-zinc-400">Recorded contracts</span>
-        </Card>
-
-        <Card className="p-4">
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Active Leases</span>
-          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-            {stats.activeCount}
-          </div>
-          <span className="text-[11px] text-zinc-400">Currently generating rent</span>
-        </Card>
-
-        <Card className="p-4">
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Monthly Rent Roll</span>
-          <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mt-1">
-            {formatCurrency(stats.totalRent)}
-          </div>
-          <span className="text-[11px] text-zinc-400">Expected monthly cashflow</span>
-        </Card>
-
-        <Card className="p-4">
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Deposit Escrow</span>
-          <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 mt-1">
-            {formatCurrency(stats.totalDeposit)}
-          </div>
-          <span className="text-[11px] text-zinc-400">Secured in escrow</span>
-        </Card>
+    <div className="relative min-h-screen">
+      {/* Background Ambient Glows for Glassmorphism */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div className="absolute top-10 left-1/4 w-96 h-96 bg-emerald-500/10 dark:bg-emerald-500/15 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 right-10 w-96 h-96 bg-cyan-500/10 dark:bg-cyan-500/15 rounded-full blur-[140px]" />
+        <div className="absolute bottom-20 left-10 w-[500px] h-[500px] bg-purple-500/8 dark:bg-purple-500/10 rounded-full blur-[150px]" />
       </div>
 
-      {/* Table Card */}
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
-          <CardTitle>Active Contracts ({filteredLeases.length})</CardTitle>
+      <DashboardShell
+        portal="owner"
+        title="Lease Agreements"
+        subtitle="Digital rental contracts, deposit escrow, and automated lease lifecycle management"
+        actions={
+          <button
+            onClick={handleOpenCreateModal}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span className="text-lg leading-none">+</span> Draft New Lease
+          </button>
+        }
+      >
+        {/* Feedback Alert */}
+        {feedbackMessage && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 dark:bg-emerald-500/15 backdrop-blur-xl border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-sm flex items-center justify-between shadow-lg shadow-emerald-500/5 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+              <span>{feedbackMessage}</span>
+            </div>
+            <button
+              onClick={() => setFeedbackMessage("")}
+              className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 p-1 rounded-lg transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Status Tabs */}
-            <div className="flex items-center rounded-xl bg-zinc-100 dark:bg-zinc-800 p-1 text-xs">
-              {LEASE_STATUSES.map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${statusFilter === st
-                    ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm"
-                    : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
-                    }`}
-                >
-                  {st}
-                </button>
-              ))}
+        {/* Glass Metrics Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Contracts */}
+          <div className="relative group overflow-hidden rounded-2xl p-5 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:border-white/60 dark:hover:border-white/20 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Total Agreements</span>
+            <div className="text-3xl font-extrabold text-zinc-900 dark:text-white mt-1.5 tracking-tight">
+              {stats.totalCount}
+            </div>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 block">Recorded contracts</span>
+          </div>
+
+          {/* Active Leases */}
+          <div className="relative group overflow-hidden rounded-2xl p-5 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:border-emerald-500/40 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/15 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
+            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Active Leases</span>
+            <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1.5 tracking-tight">
+              {stats.activeCount}
+            </div>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 block">Generating rent flow</span>
+          </div>
+
+          {/* Monthly Rent Roll */}
+          <div className="relative group overflow-hidden rounded-2xl p-5 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:border-cyan-500/40 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/15 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Monthly Rent Roll</span>
+            <div className="text-3xl font-extrabold text-zinc-900 dark:text-white mt-1.5 tracking-tight">
+              {formatCurrency(stats.totalRent)}
+            </div>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 block">Expected monthly cashflow</span>
+          </div>
+
+          {/* Deposit Escrow */}
+          <div className="relative group overflow-hidden rounded-2xl p-5 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:border-amber-500/40 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/15 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
+            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Deposit Escrow</span>
+            <div className="text-3xl font-extrabold text-zinc-900 dark:text-white mt-1.5 tracking-tight">
+              {formatCurrency(stats.totalDeposit)}
+            </div>
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 block">Protected in guarantee</span>
+          </div>
+        </div>
+
+        {/* Main Glass Table Container */}
+        <div className="rounded-3xl bg-white/70 dark:bg-zinc-900/60 backdrop-blur-2xl border border-white/50 dark:border-white/10 shadow-[0_12px_40px_rgb(0,0,0,0.06)] dark:shadow-[0_12px_40px_rgb(0,0,0,0.25)] overflow-hidden">
+          {/* Header & Controls */}
+          <div className="p-5 sm:p-6 border-b border-zinc-200/60 dark:border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                Active Contracts
+                <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  {filteredLeases.length}
+                </span>
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Overview and quick management of all tenancy agreements
+              </p>
             </div>
 
-            {/* Search Input */}
-            <div className="w-56">
-              <input
-                type="text"
-                placeholder="Search tenant or unit..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700/80 text-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Glass Status Tabs */}
+              <div className="flex items-center rounded-2xl bg-zinc-200/50 dark:bg-white/5 p-1 backdrop-blur-md border border-zinc-300/40 dark:border-white/10 text-xs">
+                {LEASE_STATUSES.map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => setStatusFilter(st)}
+                    className={`px-3 py-1.5 rounded-xl font-medium transition-all duration-200 ${
+                      statusFilter === st
+                        ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-md shadow-black/5 dark:shadow-black/20"
+                        : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+
+              {/* Glass Search Input */}
+              <div className="relative w-56">
+                <input
+                  type="text"
+                  placeholder="Search tenant or unit..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-3.5 py-2 pl-9 rounded-2xl text-xs bg-white/60 dark:bg-white/5 border border-zinc-300/60 dark:border-white/10 text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all shadow-inner"
+                />
+                <svg
+                  className="w-4 h-4 text-zinc-400 absolute left-3 top-2.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
             </div>
           </div>
-        </CardHeader>
 
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-12 text-center text-sm text-zinc-400">
-              Loading lease agreements...
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={filteredLeases}
-              emptyMessage="No lease agreements match your filters."
-            />
-          )}
-        </CardContent>
-      </Card>
+          {/* Table Body */}
+          <div className="p-0">
+            {loading ? (
+              <div className="p-16 text-center text-sm text-zinc-400 dark:text-zinc-500 animate-pulse">
+                Loading lease agreements...
+              </div>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={filteredLeases}
+                emptyMessage="No lease agreements match your filters."
+              />
+            )}
+          </div>
+        </div>
+      </DashboardShell>
 
-      {/* CREATE LEASE MODAL */}
+      {/* ============================================================== */}
+      {/* CREATE LEASE MODAL (FROSTED GLASS)                             */}
+      {/* ============================================================== */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 dark:bg-black/60 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white/85 dark:bg-zinc-900/85 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] p-6 sm:p-7">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-200/60 dark:border-white/10">
               <div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
                   Draft New Lease Agreement
                 </h3>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                   Create a legally documented rental agreement with rent and deposit terms.
                 </p>
               </div>
               <button
                 onClick={() => setIsCreateOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
               >
                 ✕
               </button>
             </div>
 
             {formError && (
-              <div className="mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-600 dark:text-rose-400">
+              <div className="mt-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 backdrop-blur-sm">
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleCreateSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleCreateSubmit} className="mt-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Agreement / Lease ID"
-                  value={formData.leaseId}
-                  onChange={(e) => setFormData({ ...formData, leaseId: e.target.value })}
-                  placeholder="e.g. L-2025-05"
-                  required
-                />
-                <Input
-                  label="Tenant Full Name"
-                  value={formData.tenantName}
-                  onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
-                  placeholder="e.g. Shakib Al Hasan"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Tenant Email"
-                  type="email"
-                  value={formData.tenantEmail}
-                  onChange={(e) => setFormData({ ...formData, tenantEmail: e.target.value })}
-                  placeholder="tenant@example.com"
-                />
-                <Input
-                  label="Tenant Phone"
-                  value={formData.tenantPhone}
-                  onChange={(e) => setFormData({ ...formData, tenantPhone: e.target.value })}
-                  placeholder="+880 1711-000000"
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Agreement / Lease ID <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.leaseId}
+                    onChange={(e) => setFormData({ ...formData, leaseId: e.target.value })}
+                    placeholder="e.g. L-2025-05"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Tenant Full Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.tenantName}
+                    onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
+                    placeholder="e.g. Shakib Al Hasan"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Tenant Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.tenantEmail}
+                    onChange={(e) => setFormData({ ...formData, tenantEmail: e.target.value })}
+                    placeholder="tenant@example.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Tenant Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.tenantPhone}
+                    onChange={(e) => setFormData({ ...formData, tenantPhone: e.target.value })}
+                    placeholder="+880 1711-000000"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Property Name <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -609,7 +692,7 @@ export default function OwnerLeasesPage() {
                     value={formData.propertyName}
                     onChange={(e) => setFormData({ ...formData, propertyName: e.target.value })}
                     placeholder="e.g. Green Horizon Residency"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/80 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   />
                   <datalist id="property-suggestions">
                     {propertiesList.map((p) => (
@@ -618,57 +701,83 @@ export default function OwnerLeasesPage() {
                   </datalist>
                 </div>
 
-                <Input
-                  label="Unit / Flat Number"
-                  value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  placeholder="e.g. Unit 4B"
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Unit / Flat Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    placeholder="e.g. Unit 4B"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Lease Start Date"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Lease End Date"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  required
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Lease Start Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Lease End Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Input
-                  label="Monthly Rent (BDT)"
-                  type="number"
-                  min="0"
-                  value={formData.rent}
-                  onChange={(e) => setFormData({ ...formData, rent: e.target.value })}
-                  placeholder="30000"
-                  required
-                />
-                <Input
-                  label="Security Deposit (BDT)"
-                  type="number"
-                  min="0"
-                  value={formData.deposit}
-                  onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
-                  placeholder="60000"
-                />
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Monthly Rent (BDT) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={formData.rent}
+                    onChange={(e) => setFormData({ ...formData, rent: e.target.value })}
+                    placeholder="30000"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Security Deposit (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.deposit}
+                    onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
+                    placeholder="60000"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Status
                   </label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/80 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-zinc-800 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   >
                     <option value="Active">Active</option>
                     <option value="Pending">Pending</option>
@@ -679,7 +788,7 @@ export default function OwnerLeasesPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                   Terms & Special Clauses (one per line)
                 </label>
                 <textarea
@@ -687,126 +796,175 @@ export default function OwnerLeasesPage() {
                   value={formData.terms}
                   onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
                   placeholder="Two months prior written notice required for termination..."
-                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/80 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                <Button
+              <div className="flex items-center justify-end gap-3 pt-5 border-t border-zinc-200/60 dark:border-white/10">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setIsCreateOpen(false)}
                   disabled={submitting}
+                  className="px-4 py-2.5 text-sm font-medium rounded-xl text-zinc-700 dark:text-zinc-300 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-zinc-300/60 dark:border-white/10 transition-colors"
                 >
                   Cancel
-                </Button>
-                <Button type="submit" variant="primary" disabled={submitting}>
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25 transition-all duration-200"
+                >
                   {submitting ? "Drafting Lease..." : "Create Agreement"}
-                </Button>
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* EDIT LEASE MODAL */}
+      {/* ============================================================== */}
+      {/* EDIT LEASE MODAL (FROSTED GLASS)                               */}
+      {/* ============================================================== */}
       {isEditOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 dark:bg-black/60 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white/85 dark:bg-zinc-900/85 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] p-6 sm:p-7">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-200/60 dark:border-white/10">
               <div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                  Edit Lease Agreement #{formData.leaseId}
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
+                  Edit Lease #{formData.leaseId}
                 </h3>
-                <p className="text-xs text-zinc-500">
-                  Update terms, monthly rent, dates, or tenant assignment details.
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Update terms, monthly rent, dates, or tenant details.
                 </p>
               </div>
               <button
                 onClick={() => setIsEditOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
               >
                 ✕
               </button>
             </div>
 
             {formError && (
-              <div className="mt-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-600 dark:text-rose-400">
+              <div className="mt-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400 backdrop-blur-sm">
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleEditSubmit} className="mt-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Tenant Full Name"
-                  value={formData.tenantName}
-                  onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Tenant Email"
-                  type="email"
-                  value={formData.tenantEmail}
-                  onChange={(e) => setFormData({ ...formData, tenantEmail: e.target.value })}
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Tenant Full Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.tenantName}
+                    onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Tenant Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.tenantEmail}
+                    onChange={(e) => setFormData({ ...formData, tenantEmail: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Property Name"
-                  value={formData.propertyName}
-                  onChange={(e) => setFormData({ ...formData, propertyName: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Unit / Flat"
-                  value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Property Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.propertyName}
+                    onChange={(e) => setFormData({ ...formData, propertyName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Unit / Flat
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Lease Start Date"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Lease End Date"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                  required
-                />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Lease Start Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.startDate}
+                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Lease End Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.endDate}
+                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Input
-                  label="Monthly Rent (BDT)"
-                  type="number"
-                  min="0"
-                  value={formData.rent}
-                  onChange={(e) => setFormData({ ...formData, rent: e.target.value })}
-                  required
-                />
-                <Input
-                  label="Security Deposit (BDT)"
-                  type="number"
-                  min="0"
-                  value={formData.deposit}
-                  onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
-                />
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Monthly Rent (BDT) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={formData.rent}
+                    onChange={(e) => setFormData({ ...formData, rent: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Security Deposit (BDT)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.deposit}
+                    onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Status
                   </label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/80 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-zinc-800 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   >
                     <option value="Active">Active</option>
                     <option value="Pending">Pending</option>
@@ -817,161 +975,176 @@ export default function OwnerLeasesPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                   Terms & Special Clauses (one per line)
                 </label>
                 <textarea
                   rows={3}
                   value={formData.terms}
                   onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700/80 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                <Button
+              <div className="flex items-center justify-end gap-3 pt-5 border-t border-zinc-200/60 dark:border-white/10">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={() => setIsEditOpen(false)}
                   disabled={submitting}
+                  className="px-4 py-2.5 text-sm font-medium rounded-xl text-zinc-700 dark:text-zinc-300 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-zinc-300/60 dark:border-white/10 transition-colors"
                 >
                   Cancel
-                </Button>
-                <Button type="submit" variant="primary" disabled={submitting}>
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-5 py-2.5 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25 transition-all duration-200"
+                >
                   {submitting ? "Saving Changes..." : "Update Agreement"}
-                </Button>
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* VIEW DETAILS MODAL */}
+      {/* ============================================================== */}
+      {/* VIEW DETAILS MODAL (FROSTED GLASS)                             */}
+      {/* ============================================================== */}
       {isViewOpen && activeLease && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 dark:bg-black/60 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white/85 dark:bg-zinc-900/85 backdrop-blur-2xl border border-white/40 dark:border-white/10 rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] p-6 sm:p-7">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-200/60 dark:border-white/10">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
                   Agreement #{activeLease.leaseId || activeLease.id}
                 </h3>
-                <Badge
-                  variant={
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold backdrop-blur-sm border ${
                     activeLease.status === "Active"
-                      ? "success"
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                       : activeLease.status === "Pending"
-                        ? "warning"
-                        : "neutral"
-                  }
-                  size="sm"
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                      : "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400 border-zinc-500/30"
+                  }`}
                 >
                   {activeLease.status || "Active"}
-                </Badge>
+                </span>
               </div>
               <button
                 onClick={() => setIsViewOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
               >
                 ✕
               </button>
             </div>
 
-            <div className="mt-5 space-y-5 text-sm">
-              <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800">
+            <div className="mt-5 space-y-4 text-sm">
+              {/* Tenant & Property Info */}
+              <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
                 <div>
-                  <span className="text-xs text-zinc-400">Tenant</span>
+                  <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Tenant</span>
                   <div className="font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5">
                     {activeLease.tenant || activeLease.tenantName}
                   </div>
                   {activeLease.tenantEmail && (
-                    <div className="text-xs text-zinc-500">{activeLease.tenantEmail}</div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{activeLease.tenantEmail}</div>
                   )}
                   {activeLease.tenantPhone && (
-                    <div className="text-xs text-zinc-500">{activeLease.tenantPhone}</div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">{activeLease.tenantPhone}</div>
                   )}
                 </div>
 
                 <div>
-                  <span className="text-xs text-zinc-400">Property & Unit</span>
+                  <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Property & Unit</span>
                   <div className="font-semibold text-zinc-900 dark:text-zinc-100 mt-0.5">
                     {activeLease.propertyName || activeLease.property}
                   </div>
                   {activeLease.unit && (
-                    <div className="text-xs text-zinc-500 font-medium">
+                    <div className="inline-block px-2 py-0.5 mt-1 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                       Unit: {activeLease.unit}
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Financial & Term Grid */}
               <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/40">
-                  <span className="text-xs text-zinc-400">Monthly Rent</span>
-                  <div className="text-base font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
+                <div className="p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
+                  <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Rent / Mo</span>
+                  <div className="text-base font-extrabold text-zinc-900 dark:text-white mt-0.5">
                     {formatCurrency(activeLease.rent)}
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/40">
-                  <span className="text-xs text-zinc-400">Security Deposit</span>
-                  <div className="text-base font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
+                <div className="p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
+                  <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Deposit</span>
+                  <div className="text-base font-extrabold text-zinc-900 dark:text-white mt-0.5">
                     {formatCurrency(activeLease.deposit || 0)}
                   </div>
                 </div>
 
-                <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/40">
-                  <span className="text-xs text-zinc-400">Term Duration</span>
-                  <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 mt-1">
-                    {activeLease.startDate} <br />→ {activeLease.endDate}
+                <div className="p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
+                  <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Duration</span>
+                  <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 mt-1">
+                    {activeLease.startDate} <br />
+                    <span className="text-zinc-400 text-[10px]">to</span> {activeLease.endDate}
                   </div>
                 </div>
               </div>
 
-              {activeLease.terms && (Array.isArray(activeLease.terms) ? activeLease.terms.length > 0 : activeLease.terms) && (
-                <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800">
-                  <h4 className="text-xs font-bold uppercase text-zinc-500 tracking-wider mb-2">
-                    Key Agreement Clauses
-                  </h4>
-                  <ul className="list-disc list-inside space-y-1 text-xs text-zinc-700 dark:text-zinc-300">
-                    {Array.isArray(activeLease.terms) ? (
-                      activeLease.terms.map((clause, idx) => <li key={idx}>{clause}</li>)
-                    ) : (
-                      <li>{activeLease.terms}</li>
-                    )}
-                  </ul>
-                </div>
-              )}
+              {/* Terms / Clauses */}
+              {activeLease.terms &&
+                (Array.isArray(activeLease.terms) ? activeLease.terms.length > 0 : activeLease.terms) && (
+                  <div className="p-4 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
+                    <h4 className="text-xs font-bold uppercase text-zinc-400 tracking-wider mb-2">
+                      Key Agreement Clauses
+                    </h4>
+                    <ul className="list-disc list-inside space-y-1.5 text-xs text-zinc-700 dark:text-zinc-300">
+                      {Array.isArray(activeLease.terms) ? (
+                        activeLease.terms.map((clause, idx) => <li key={idx}>{clause}</li>)
+                      ) : (
+                        <li>{activeLease.terms}</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
 
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                <Button
-                  size="sm"
-                  variant="outline"
+              {/* Actions Footer */}
+              <div className="flex items-center justify-between pt-5 border-t border-zinc-200/60 dark:border-white/10">
+                <button
                   onClick={() => {
                     alert(`Downloading digital agreement contract PDF for ${activeLease.leaseId}...`);
                   }}
+                  className="px-3.5 py-2 text-xs font-semibold rounded-xl text-zinc-700 dark:text-zinc-300 bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 border border-zinc-300/60 dark:border-white/10 transition-all flex items-center gap-1.5"
                 >
-                  Download Signed PDF
-                </Button>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download PDF
+                </button>
                 <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
                     onClick={() => {
                       setIsViewOpen(false);
                       handleOpenEditModal(activeLease);
                     }}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all"
                   >
                     Edit Agreement
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => setIsViewOpen(false)}>
+                  </button>
+                  <button
+                    onClick={() => setIsViewOpen(false)}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl text-zinc-700 dark:text-zinc-300 bg-zinc-200/60 dark:bg-white/10 hover:bg-zinc-300/60 dark:hover:bg-white/20 transition-all"
+                  >
                     Close
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         </div>
       )}
-    </DashboardShell>
+    </div>
   );
 }
