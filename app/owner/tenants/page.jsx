@@ -269,39 +269,44 @@ export default function OwnerTenantsPage() {
   const columns = [
     {
       header: "Tenant",
+      className: "min-w-[220px]",
       accessor: (row) => (
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</span>
+            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</span>
             {row.isActive === false && (
               <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                 Inactive
               </span>
             )}
           </div>
-          <div className="text-xs text-zinc-400">{row.email}</div>
+          <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{row.email}</div>
         </div>
       ),
     },
     {
       header: "Assigned Unit",
+      className: "min-w-[180px]",
       accessor: (row) => (
         <div>
-          <div className="font-medium text-zinc-800 dark:text-zinc-200">{row.unit}</div>
-          <div className="text-[11px] text-zinc-400">{row.property}</div>
+          <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{row.unit}</div>
+          <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{row.property}</div>
         </div>
       ),
     },
     {
       header: "Phone",
+      className: "whitespace-nowrap",
       accessor: (row) => row.phone || "—",
     },
     {
       header: "Lease Expiry",
+      className: "whitespace-nowrap",
       accessor: (row) => row.leaseEnd || "—",
     },
     {
       header: "Rent Status",
+      className: "whitespace-nowrap",
       accessor: (row) => (
         <Badge
           variant={row.rentStatus === "Paid" ? "success" : row.rentStatus === "Overdue" ? "danger" : "warning"}
@@ -313,6 +318,7 @@ export default function OwnerTenantsPage() {
     },
     {
       header: "Account Access",
+      className: "whitespace-nowrap",
       accessor: (row) =>
         row.isActive !== false ? (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -328,8 +334,9 @@ export default function OwnerTenantsPage() {
     },
     {
       header: "Actions",
+      className: "min-w-[260px]",
       accessor: (row) => (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {/* Edit Tenant Button */}
           <Button
             size="sm"
@@ -442,12 +449,12 @@ export default function OwnerTenantsPage() {
       )}
 
       {/* Filter Tabs & Summary */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 p-3 mb-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
           <button
             type="button"
             onClick={() => setStatusFilter("all")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
               statusFilter === "all"
                 ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm"
                 : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
@@ -458,7 +465,7 @@ export default function OwnerTenantsPage() {
           <button
             type="button"
             onClick={() => setStatusFilter("active")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
               statusFilter === "active"
                 ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 shadow-sm"
                 : "text-zinc-500 hover:text-emerald-600 dark:hover:text-emerald-400"
@@ -470,7 +477,7 @@ export default function OwnerTenantsPage() {
           <button
             type="button"
             onClick={() => setStatusFilter("inactive")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
               statusFilter === "inactive"
                 ? "bg-white dark:bg-zinc-800 text-rose-600 dark:text-rose-400 shadow-sm"
                 : "text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400"
@@ -481,8 +488,9 @@ export default function OwnerTenantsPage() {
           </button>
         </div>
 
-        <div className="w-full sm:w-72">
+        <div className="w-full sm:w-80">
           <Input
+            className="bg-white dark:bg-zinc-950"
             placeholder="Search tenant, email, property, or unit..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -491,10 +499,10 @@ export default function OwnerTenantsPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="py-4 sm:py-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <CardTitle>
+              <CardTitle className="text-base sm:text-lg">
                 {statusFilter === "all"
                   ? "Tenants Roster"
                   : statusFilter === "active"
