@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { DataTable } from "@/components/tables/DataTable";
 import { formatCurrency } from "@/lib/utils";
@@ -450,12 +451,20 @@ export default function OwnerLeasesPage() {
         title="Lease Agreements"
         subtitle="Digital rental contracts, deposit escrow, and automated lease lifecycle management"
         actions={
-          <button
-            onClick={handleOpenCreateModal}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <span className="text-lg leading-none">+</span> Draft New Lease
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/owner/invoices"
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 px-4 py-2 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/10 dark:text-emerald-300"
+            >
+              Manage invoices
+            </Link>
+            <button
+              onClick={handleOpenCreateModal}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span className="text-lg leading-none">+</span> Draft New Lease
+            </button>
+          </div>
         }
       >
         {/* Feedback Alert */}
