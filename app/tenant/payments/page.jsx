@@ -1,61 +1,85 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/tables/DataTable";
 import { formatCurrency } from "@/lib/utils";
+import { downloadInvoice } from "@/lib/invoiceDownload";
 
-const PAYMENT_HISTORY = [
-  { id: "INV-109", month: "September 2026", amount: 34500, paidVia: "bKash (SSLCommerz)", date: "2026-09-03", status: "Paid" },
-  { id: "INV-098", month: "August 2026", amount: 34500, paidVia: "Visa Card (SSLCommerz)", date: "2026-08-04", status: "Paid" },
-  { id: "INV-087", month: "July 2026", amount: 34500, paidVia: "Nagad (SSLCommerz)", date: "2026-07-02", status: "Paid" },
-];
+function formatDate(date) {
+  if (!date) return "—";
+  const [year, month, day] = String(date).slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString();
+}
 
 export default function TenantPaymentsPage() {
-  const [paying, setPaying] = useState(false);
-  const [paid, setPaid] = useState(false);
+  const [invoices, setInvoices] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const handlePay = () => {
-    setPaying(true);
-    setTimeout(() => {
-      setPaying(false);
-      setPaid(true);
-    }, 1200);
-  };
+  const loadInvoices = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/tenant/invoices");
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to load your invoices.");
+        setInvoices([]);
+        setNotifications([]);
+        return;
+      }
+      if (!Array.isArray(data.invoices) || !Array.isArray(data.notifications)) {
+        setError("The server returned invalid invoice data.");
+        setInvoices([]);
+        setNotifications([]);
+        return;
+      }
+      setInvoices(data.invoices);
+      setNotifications(data.notifications);
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to load your invoices.");
+      setInvoices([]);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadInvoices();
+  }, [loadInvoices]);
 
   const columns = [
+    { header: "Invoice", accessor: (invoice) => <span className="font-mono">{invoice._id.slice(-8).toUpperCase()}</span> },
+    { header: "Billing month", accessor: "billingPeriod" },
     {
-      header: "Invoice #",
-      accessor: "id",
+      header: "Property / unit",
+      accessor: (invoice) => `${invoice.propertyName || "—"}${invoice.unit ? ` · ${invoice.unit}` : ""}`,
     },
-    {
-      header: "Billing Period",
-      accessor: "month",
-    },
-    {
-      header: "Amount",
-      accessor: (row) => <strong>{formatCurrency(row.amount)}</strong>,
-    },
-    {
-      header: "Payment Channel",
-      accessor: "paidVia",
-    },
-    {
-      header: "Paid Date",
-      accessor: "date",
-    },
+    { header: "Amount", accessor: (invoice) => formatCurrency(invoice.rentAmount) },
+    { header: "Due date", accessor: (invoice) => formatDate(invoice.dueDate) },
     {
       header: "Status",
-      accessor: (row) => <Badge variant="success" size="sm">{row.status}</Badge>,
+      accessor: (invoice) => (
+        <Badge variant={invoice.status === "Paid" ? "success" : invoice.status === "Overdue" ? "danger" : "warning"}>
+          {invoice.status}
+        </Badge>
+      ),
     },
     {
-      header: "Receipt",
-      accessor: () => (
-        <Button size="sm" variant="ghost">
-          Download PDF
+      header: "Payment instructions",
+      accessor: (invoice) => invoice.paymentInstructions || "Contact your property owner for payment details.",
+    },
+    {
+      header: "Download",
+      accessor: (invoice) => (
+        <Button size="sm" variant="outline" onClick={() => downloadInvoice(invoice)}>
+          Download invoice
         </Button>
       ),
     },
@@ -64,75 +88,65 @@ export default function TenantPaymentsPage() {
   return (
     <DashboardShell
       portal="tenant"
-      title="Rent & Utility Payments"
-      subtitle="Pay monthly rent securely through SSLCommerz (bKash, Nagad, Visa, Mastercard, Internet Banking)"
+      title="Rent invoices"
+      subtitle="View your rent charges, due dates, payment instructions, and invoice notifications."
     >
-      {/* Current Invoice Checkout Card */}
-      <Card className="border-emerald-500/40 overflow-hidden">
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-4 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <span className="text-xs uppercase tracking-wider font-semibold opacity-90">
-              Current Statement
-            </span>
-            <h3 className="text-xl font-bold">October 2026 Rent Invoice</h3>
-          </div>
-          <Badge variant="neutral" className="bg-white/20 text-white border-white/30 self-start sm:self-auto">
-            Due in 6 Days (Oct 05, 2026)
-          </Badge>
-        </div>
+      {error && (
+        <p role="alert" aria-live="polite" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+          {error}
+        </p>
+      )}
 
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm py-2 border-b border-zinc-100 dark:border-zinc-800">
-                <span className="text-zinc-500">Unit Rent (3 Bed / 3 Bath):</span>
-                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatCurrency(32000)}</span>
-              </div>
-              <div className="flex justify-between text-sm py-2 border-b border-zinc-100 dark:border-zinc-800">
-                <span className="text-zinc-500">Service & Water Charge:</span>
-                <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatCurrency(2500)}</span>
-              </div>
-              <div className="flex justify-between text-base py-3 border-b border-zinc-200 dark:border-zinc-700 font-bold">
-                <span className="text-zinc-900 dark:text-zinc-100">Total Payable:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 text-xl">{formatCurrency(34500)}</span>
-              </div>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800 text-center space-y-4">
-              <div className="text-xs text-zinc-500">
-                🔒 Secured by SSLCommerz 256-bit Bank Grade Gateway
-              </div>
-              <div className="flex items-center justify-center gap-2 text-xs font-semibold text-zinc-400">
-                <span>bKash</span> • <span>Nagad</span> • <span>Rocket</span> • <span>Visa</span> • <span>Mastercard</span>
-              </div>
-
-              {paid ? (
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 font-semibold text-sm">
-                  ✓ Payment Successful! Receipt generated.
-                </div>
-              ) : (
-                <Button
-                  size="lg"
-                  variant="primary"
-                  className="w-full text-base"
-                  onClick={handlePay}
-                  disabled={paying}
+      <Card>
+        <CardHeader>
+          <CardTitle>Invoice notifications ({notifications.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p role="status" className="text-sm text-zinc-500">Loading notifications...</p>
+          ) : notifications.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">You don’t have any invoice notifications yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {notifications.map((notification) => (
+                <li
+                  key={notification._id}
+                  className={`rounded-xl border p-4 ${
+                    notification.readAt
+                      ? "border-zinc-200 dark:border-zinc-800"
+                      : "border-emerald-300 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20"
+                  }`}
                 >
-                  {paying ? "Connecting to SSLCommerz..." : "Proceed to Pay ৳ 34,500"}
-                </Button>
-              )}
-            </div>
-          </div>
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{notification.title}</h3>
+                      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{notification.message}</p>
+                    </div>
+                    <time className="shrink-0 text-xs text-zinc-500" dateTime={notification.createdAt}>
+                      {formatDate(notification.createdAt)}
+                    </time>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 
-      {/* History */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
-          <CardTitle>Past Payment Receipts</CardTitle>
+          <CardTitle>My invoices ({invoices.length})</CardTitle>
         </CardHeader>
-        <CardContent className="p-0">
-          <DataTable columns={columns} data={PAYMENT_HISTORY} />
+        <CardContent>
+          {loading ? (
+            <p role="status" className="py-6 text-center text-sm text-zinc-500">Loading invoices...</p>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={invoices}
+              emptyMessage="No rent invoices have been issued to you yet."
+            />
+          )}
         </CardContent>
       </Card>
     </DashboardShell>

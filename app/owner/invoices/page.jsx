@@ -1,81 +1,180 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/tables/DataTable";
 import { formatCurrency } from "@/lib/utils";
+import { downloadInvoice } from "@/lib/invoiceDownload";
 
-const INVOICES = [
-  { id: "INV-2026-101", tenant: "Farhan Ahmed", unit: "Green Horizon (Unit 4B)", rent: 32000, utilities: 2500, total: 34500, issueDate: "2026-09-25", dueDate: "2026-10-05", status: "Paid" },
-  { id: "INV-2026-102", tenant: "Nabila Tabassum", unit: "Lakeview Terrace (Unit 2A)", rent: 28000, utilities: 1800, total: 29800, issueDate: "2026-09-25", dueDate: "2026-10-05", status: "Pending" },
-  { id: "INV-2026-103", tenant: "Tanvir Rahman", unit: "Green Horizon (Unit 1A)", rent: 25000, utilities: 2200, total: 27200, issueDate: "2026-08-25", dueDate: "2026-09-05", status: "Overdue" },
-  { id: "INV-2026-104", tenant: "Sabbir Hossain", unit: "Gulshan Heights (Apt 7C)", rent: 45000, utilities: 4000, total: 49000, issueDate: "2026-09-25", dueDate: "2026-10-05", status: "Paid" },
-];
+function getNextBillingPeriod() {
+  const nextMonth = new Date();
+  nextMonth.setDate(1);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatDate(date) {
+  if (!date) return "—";
+  const [year, month, day] = String(date).slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString();
+}
 
 export default function OwnerInvoicesPage() {
+  const [billingPeriod, setBillingPeriod] = useState(getNextBillingPeriod);
+  const [dueDate, setDueDate] = useState(() => `${getNextBillingPeriod()}-05`);
+  const [paymentInstructions, setPaymentInstructions] = useState("");
+  const [invoices, setInvoices] = useState([]);
+  const [activeLeases, setActiveLeases] = useState([]);
+  const [selectedLeaseIds, setSelectedLeaseIds] = useState([]);
   const [filter, setFilter] = useState("All");
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [sendingInvoiceId, setSendingInvoiceId] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  const filtered = filter === "All" ? INVOICES : INVOICES.filter(i => i.status === filter);
+  const loadInvoices = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/owner/invoices?period=${encodeURIComponent(billingPeriod)}`);
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to load invoices.");
+        setInvoices([]);
+        setActiveLeases([]);
+        setSelectedLeaseIds([]);
+        return;
+      }
+      if (!Array.isArray(data.invoices) || !Array.isArray(data.leases)) {
+        setError("The server returned an invalid invoice list.");
+        setInvoices([]);
+        setActiveLeases([]);
+        setSelectedLeaseIds([]);
+        return;
+      }
+      setInvoices(data.invoices);
+      setActiveLeases(data.leases);
+      setSelectedLeaseIds(data.leases.map((lease) => lease.id));
+      setError("");
+    } catch (err) {
+      setError(err.message || "Failed to load invoices.");
+      setInvoices([]);
+      setActiveLeases([]);
+      setSelectedLeaseIds([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [billingPeriod]);
+
+  useEffect(() => {
+    void loadInvoices();
+  }, [loadInvoices]);
+
+  const filteredInvoices = useMemo(
+    () => filter === "All" ? invoices : invoices.filter((invoice) => invoice.status === filter),
+    [filter, invoices]
+  );
+
+  function changeBillingPeriod(period) {
+    setBillingPeriod(period);
+    setDueDate(`${period}-05`);
+    setMessage("");
+  }
+
+  function toggleLease(leaseId) {
+    setSelectedLeaseIds((current) =>
+      current.includes(leaseId)
+        ? current.filter((id) => id !== leaseId)
+        : [...current, leaseId]
+    );
+  }
+
+  async function generateInvoices(event) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/owner/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leaseIds: selectedLeaseIds,
+          billingPeriod,
+          dueDate,
+          paymentInstructions,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to generate invoices.");
+        return;
+      }
+      setMessage(data.message || "Invoices generated.");
+      await loadInvoices();
+    } catch (err) {
+      setError(err.message || "Failed to generate invoices.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function sendInvoice(invoice) {
+    setSendingInvoiceId(invoice._id);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`/api/owner/invoices/${invoice._id}/send`, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to send invoice.");
+        return;
+      }
+      setMessage(data.message || "Invoice notification sent to tenant.");
+      await loadInvoices();
+    } catch (err) {
+      setError(err.message || "Failed to send invoice.");
+    } finally {
+      setSendingInvoiceId("");
+    }
+  }
 
   const columns = [
+    { header: "Invoice", accessor: (invoice) => <span className="font-mono">{invoice._id.slice(-8).toUpperCase()}</span> },
+    { header: "Tenant", accessor: (invoice) => invoice.tenantName || invoice.tenantId?.name || "—" },
     {
-      header: "Invoice #",
-      accessor: (row) => <span className="font-mono font-medium">{row.id}</span>,
+      header: "Property / unit",
+      accessor: (invoice) => `${invoice.propertyName || "—"}${invoice.unit ? ` · ${invoice.unit}` : ""}`,
     },
-    {
-      header: "Tenant & Unit",
-      accessor: (row) => (
-        <div>
-          <div className="font-semibold text-zinc-900 dark:text-zinc-100">{row.tenant}</div>
-          <div className="text-xs text-zinc-400">{row.unit}</div>
-        </div>
-      ),
-    },
-    {
-      header: "Rent + Utilities",
-      accessor: (row) => (
-        <span className="text-xs">
-          {formatCurrency(row.rent)} + {formatCurrency(row.utilities)}
-        </span>
-      ),
-    },
-    {
-      header: "Total Due",
-      accessor: (row) => (
-        <span className="font-bold text-zinc-900 dark:text-zinc-100">
-          {formatCurrency(row.total)}
-        </span>
-      ),
-    },
-    {
-      header: "Due Date",
-      accessor: "dueDate",
-    },
+    { header: "Billing month", accessor: "billingPeriod" },
+    { header: "Amount", accessor: (invoice) => formatCurrency(invoice.rentAmount) },
+    { header: "Due date", accessor: (invoice) => formatDate(invoice.dueDate) },
     {
       header: "Status",
-      accessor: (row) => (
-        <Badge
-          variant={row.status === "Paid" ? "success" : row.status === "Overdue" ? "danger" : "warning"}
-          size="sm"
-        >
-          {row.status}
+      accessor: (invoice) => (
+        <Badge variant={invoice.status === "Paid" ? "success" : invoice.status === "Overdue" ? "danger" : "warning"}>
+          {invoice.status}
         </Badge>
       ),
     },
     {
       header: "Actions",
-      accessor: (row) => (
-        <div className="flex gap-2">
-          {row.status !== "Paid" && (
-            <Button size="sm" variant="outline">
-              Send SMS
-            </Button>
-          )}
-          <Button size="sm" variant="ghost">
-            View
+      accessor: (invoice) => (
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => downloadInvoice(invoice)}>
+            Download
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={sendingInvoiceId === invoice._id}
+            onClick={() => sendInvoice(invoice)}
+          >
+            {sendingInvoiceId === invoice._id ? "Sending..." : "Send"}
           </Button>
         </div>
       ),
@@ -85,37 +184,158 @@ export default function OwnerInvoicesPage() {
   return (
     <DashboardShell
       portal="owner"
-      title="Rent Invoices"
-      subtitle="Issue monthly invoices, track rent collections, and trigger automated reminders"
+      title="Rent invoices"
+      subtitle="Generate monthly rent invoices from active leases, notify tenants, and track billing."
       actions={
-        <Button variant="primary" size="md">
-          + Generate Monthly Invoices
+        <Button
+          variant="primary"
+          size="md"
+          onClick={() => setShowGenerator((visible) => !visible)}
+          aria-expanded={showGenerator}
+          aria-controls="invoice-generator"
+        >
+          {showGenerator ? "Close invoice form" : "Generate monthly invoices"}
         </Button>
       }
     >
+      {(error || message) && (
+        <div
+          role={error ? "alert" : "status"}
+          aria-live="polite"
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            error
+              ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"
+          }`}
+        >
+          {error || message}
+        </div>
+      )}
+
+      {showGenerator && (
+        <Card id="invoice-generator">
+          <CardHeader>
+            <CardTitle>Generate invoices from active leases</CardTitle>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Each selected tenant receives an in-app notification. Invoices are created only once per lease and billing month.
+            </p>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p role="status" className="text-sm text-zinc-500">Loading active leases...</p>
+            ) : activeLeases.length === 0 ? (
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                No active leases with a tenant account cover this billing month.
+              </p>
+            ) : (
+              <form onSubmit={generateInvoices} className="space-y-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                    Billing month
+                    <input
+                      required
+                      type="month"
+                      value={billingPeriod}
+                      onChange={(event) => changeBillingPeriod(event.target.value)}
+                      className="mt-1 block w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                    Due date
+                    <input
+                      required
+                      type="date"
+                      value={dueDate}
+                      min={`${billingPeriod}-01`}
+                      max={`${billingPeriod}-${String(new Date(
+                        Number(billingPeriod.slice(0, 4)),
+                        Number(billingPeriod.slice(5, 7)),
+                        0
+                      ).getDate()).padStart(2, "0")}`}
+                      onChange={(event) => setDueDate(event.target.value)}
+                      className="mt-1 block w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                    />
+                  </label>
+                </div>
+                <fieldset className="space-y-2">
+                  <legend className="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                    Active leases ({activeLeases.length})
+                  </legend>
+                  {activeLeases.map((lease) => (
+                    <label
+                      key={lease.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 p-3 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedLeaseIds.includes(lease.id)}
+                        onChange={() => toggleLease(lease.id)}
+                        className="mt-1 h-4 w-4 accent-emerald-600"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium text-zinc-900 dark:text-zinc-100">
+                          {lease.tenantName} <span className="font-normal text-zinc-500">· {lease.propertyName}{lease.unit ? `, ${lease.unit}` : ""}</span>
+                        </span>
+                        <span className="block text-sm text-zinc-500 dark:text-zinc-400">
+                          {lease.tenantEmail} · {formatCurrency(lease.rent)} / month
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                  Payment instructions
+                  <textarea
+                    rows={3}
+                    maxLength={1000}
+                    value={paymentInstructions}
+                    onChange={(event) => setPaymentInstructions(event.target.value)}
+                    placeholder="Add payment method, account details, or other instructions"
+                    className="mt-1 block w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-zinc-900 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
+                  />
+                </label>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400" aria-live="polite">
+                    {selectedLeaseIds.length} lease{selectedLeaseIds.length === 1 ? "" : "s"} selected
+                  </p>
+                  <Button type="submit" disabled={submitting || !selectedLeaseIds.length}>
+                    {submitting ? "Generating..." : "Generate selected invoices"}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle>Invoices ({filtered.length})</CardTitle>
-            <div className="flex items-center gap-1.5">
-              {["All", "Paid", "Pending", "Overdue"].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    filter === f
-                      ? "bg-emerald-600 text-white"
-                      : "border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle>Invoices ({filteredInvoices.length})</CardTitle>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter invoices by status">
+            {["All", "Paid", "Pending", "Overdue"].map((status) => (
+              <Button
+                key={status}
+                type="button"
+                size="sm"
+                variant={filter === status ? "primary" : "outline"}
+                aria-pressed={filter === status}
+                onClick={() => setFilter(status)}
+              >
+                {status}
+              </Button>
+            ))}
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <DataTable columns={columns} data={filtered} />
+        <CardContent>
+          {loading ? (
+            <p role="status" className="py-6 text-center text-sm text-zinc-500">Loading invoices...</p>
+          ) : (
+            <DataTable
+              columns={columns}
+              data={filteredInvoices}
+              emptyMessage="No invoices match this filter. Generate invoices from active leases to get started."
+            />
+          )}
         </CardContent>
       </Card>
     </DashboardShell>
