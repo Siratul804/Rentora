@@ -1,16 +1,60 @@
 "use client";
 
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 
+function formatDueDate(date) {
+  if (!date) return "Not available";
+  const [year, month, day] = String(date).slice(0, 10).split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export default function TenantDashboardPage() {
   const { user, loading } = useAuth();
+  const [rent, setRent] = useState(null);
+  const [rentLoading, setRentLoading] = useState(true);
+  const [rentError, setRentError] = useState("");
+
+  const loadRentSummary = useCallback(async () => {
+    setRentLoading(true);
+    try {
+      const response = await fetch("/api/tenant/rent-summary");
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load your rent details.");
+      }
+      if (data.rent !== null && (
+        typeof data.rent !== "object" ||
+        typeof data.rent.amount !== "number" ||
+        typeof data.rent.paymentFrequency !== "string" ||
+        typeof data.rent.dueDate !== "string" ||
+        !["Paid", "Pending", "Overdue"].includes(data.rent.status)
+      )) {
+        throw new Error("The server returned invalid rent details.");
+      }
+      setRent(data.rent);
+      setRentError("");
+    } catch (error) {
+      setRent(null);
+      setRentError(error.message || "Failed to load your rent details.");
+    } finally {
+      setRentLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRentSummary();
+  }, [loadRentSummary]);
 
   const tenantName = user?.name?.split(" ")[0] || "Resident";
   const property = user?.property || "Your Property";
@@ -64,27 +108,67 @@ export default function TenantDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full">
-                Next Rent Due
-              </span>
-              <span className="text-xl">💰</span>
+        <Card aria-labelledby="rent-summary-heading">
+          <CardContent className="p-6 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 id="rent-summary-heading" className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                  Rent &amp; Due Date
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Your current rent details</p>
+              </div>
+              <span aria-hidden="true" className="text-xl">💰</span>
             </div>
-            <div className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">
-              {formatCurrency(34500)}
-            </div>
-            <div className="text-xs text-zinc-500">
-              Due on: <strong className="text-zinc-800 dark:text-zinc-200">October 05, 2026</strong>
-            </div>
-            <div className="pt-2">
-              <Link href="/tenant/payments">
-                <Button size="sm" variant="primary" className="w-full">
-                  Pay via SSLCommerz (bKash/Card)
-                </Button>
-              </Link>
-            </div>
+
+            {rentLoading ? (
+              <p role="status" className="py-4 text-sm text-zinc-500 dark:text-zinc-400">
+                Loading your rent details...
+              </p>
+            ) : rentError ? (
+              <div className="space-y-3">
+                <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{rentError}</p>
+                <Button size="sm" variant="outline" onClick={loadRentSummary}>Try again</Button>
+              </div>
+            ) : rent ? (
+              <>
+                <div className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">
+                  {formatCurrency(rent.amount)}
+                </div>
+                <dl className="grid grid-cols-1 gap-3 border-t border-zinc-200/60 pt-3 text-sm dark:border-zinc-800 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs text-zinc-500 dark:text-zinc-400">Payment frequency</dt>
+                    <dd className="mt-1 font-medium text-zinc-800 dark:text-zinc-200">{rent.paymentFrequency}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs text-zinc-500 dark:text-zinc-400">Next due date</dt>
+                    <dd className="mt-1 font-medium text-zinc-800 dark:text-zinc-200">{formatDueDate(rent.dueDate)}</dd>
+                  </div>
+                </dl>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">Payment status</span>
+                    <Badge
+                      variant={rent.status === "Paid" ? "success" : rent.status === "Overdue" ? "danger" : "warning"}
+                      aria-label={`Payment status: ${rent.status.toLowerCase()}`}
+                    >
+                      {rent.status}
+                    </Badge>
+                  </div>
+                  <Link href="/tenant/payments" className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                    View invoices <span aria-hidden="true">→</span>
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                  No active rent details are linked to your account yet.
+                </p>
+                <Link href="/tenant/lease" className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                  View lease details <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
 
