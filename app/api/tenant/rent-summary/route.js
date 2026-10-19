@@ -90,6 +90,7 @@ export async function GET() {
         status,
         propertyName: lease.propertyName,
         unit: lease.unit || "",
+        invoiceId: invoice?._id?.toString() || null,
       },
     });
   } catch (error) {
