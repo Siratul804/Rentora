@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
+import { downloadInvoice } from "@/lib/invoiceDownload";
 import { useAuth } from "@/hooks/useAuth";
 
 function formatDueDate(date) {
@@ -24,6 +25,9 @@ export default function TenantDashboardPage() {
   const [rent, setRent] = useState(null);
   const [rentLoading, setRentLoading] = useState(true);
   const [rentError, setRentError] = useState("");
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [invoiceDownloadError, setInvoiceDownloadError] = useState("");
+  const [invoiceDownloadMessage, setInvoiceDownloadMessage] = useState("");
 
   const loadRentSummary = useCallback(async () => {
     setRentLoading(true);
@@ -38,7 +42,8 @@ export default function TenantDashboardPage() {
         typeof data.rent.amount !== "number" ||
         typeof data.rent.paymentFrequency !== "string" ||
         typeof data.rent.dueDate !== "string" ||
-        !["Paid", "Pending", "Overdue"].includes(data.rent.status)
+        !["Paid", "Pending", "Overdue"].includes(data.rent.status) ||
+        (data.rent.invoiceId !== null && typeof data.rent.invoiceId !== "string")
       )) {
         throw new Error("The server returned invalid rent details.");
       }
@@ -55,6 +60,21 @@ export default function TenantDashboardPage() {
   useEffect(() => {
     void loadRentSummary();
   }, [loadRentSummary]);
+
+  async function downloadCurrentInvoice() {
+    if (!rent?.invoiceId) return;
+    setDownloadingInvoice(true);
+    setInvoiceDownloadError("");
+    setInvoiceDownloadMessage("");
+    try {
+      await downloadInvoice(rent.invoiceId);
+      setInvoiceDownloadMessage("Invoice PDF downloaded.");
+    } catch (error) {
+      setInvoiceDownloadError(error.message || "Failed to download the invoice PDF.");
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  }
 
   const tenantName = user?.name?.split(" ")[0] || "Resident";
   const property = user?.property || "Your Property";
@@ -154,10 +174,33 @@ export default function TenantDashboardPage() {
                       {rent.status}
                     </Badge>
                   </div>
-                  <Link href="/tenant/payments" className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                    View invoices <span aria-hidden="true">→</span>
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {rent.invoiceId && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={downloadingInvoice}
+                        onClick={downloadCurrentInvoice}
+                      >
+                        {downloadingInvoice ? "Preparing PDF..." : "Download Invoice (PDF)"}
+                      </Button>
+                    )}
+                    <Link href="/tenant/payments" className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                      View invoices <span aria-hidden="true">→</span>
+                    </Link>
+                  </div>
                 </div>
+                {(invoiceDownloadError || invoiceDownloadMessage) && (
+                  <p
+                    role={invoiceDownloadError ? "alert" : "status"}
+                    aria-live="polite"
+                    className={invoiceDownloadError
+                      ? "text-sm text-rose-700 dark:text-rose-300"
+                      : "text-sm text-emerald-700 dark:text-emerald-300"}
+                  >
+                    {invoiceDownloadError || invoiceDownloadMessage}
+                  </p>
+                )}
               </>
             ) : (
               <div className="space-y-3">

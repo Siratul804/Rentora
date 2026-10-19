@@ -34,6 +34,7 @@ export default function OwnerInvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -143,6 +144,20 @@ export default function OwnerInvoicesPage() {
     }
   }
 
+  async function downloadInvoicePdf(invoice) {
+    setDownloadingInvoiceId(invoice._id);
+    setError("");
+    setMessage("");
+    try {
+      await downloadInvoice(invoice._id);
+      setMessage("Invoice PDF downloaded.");
+    } catch (err) {
+      setError(err.message || "Failed to download the invoice PDF.");
+    } finally {
+      setDownloadingInvoiceId("");
+    }
+  }
+
   const columns = [
     { header: "Invoice", accessor: (invoice) => <span className="font-mono">{invoice._id.slice(-8).toUpperCase()}</span> },
     { header: "Tenant", accessor: (invoice) => invoice.tenantName || invoice.tenantId?.name || "—" },
@@ -165,8 +180,14 @@ export default function OwnerInvoicesPage() {
       header: "Actions",
       accessor: (invoice) => (
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={() => downloadInvoice(invoice)}>
-            Download
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={downloadingInvoiceId === invoice._id}
+            onClick={() => downloadInvoicePdf(invoice)}
+            aria-label={`Download Invoice (PDF) ${invoice._id.slice(-8).toUpperCase()}`}
+          >
+            {downloadingInvoiceId === invoice._id ? "Preparing PDF..." : "Download Invoice (PDF)"}
           </Button>
           <Button
             size="sm"

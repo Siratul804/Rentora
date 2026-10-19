@@ -19,7 +19,9 @@ export default function TenantPaymentsPage() {
   const [invoices, setInvoices] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState("");
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
   const loadInvoices = useCallback(async () => {
     setLoading(true);
@@ -54,6 +56,20 @@ export default function TenantPaymentsPage() {
     void loadInvoices();
   }, [loadInvoices]);
 
+  async function downloadInvoicePdf(invoice) {
+    setDownloadingInvoiceId(invoice._id);
+    setError("");
+    setMessage("");
+    try {
+      await downloadInvoice(invoice._id);
+      setMessage("Invoice PDF downloaded.");
+    } catch (err) {
+      setError(err.message || "Failed to download the invoice PDF.");
+    } finally {
+      setDownloadingInvoiceId("");
+    }
+  }
+
   const columns = [
     { header: "Invoice", accessor: (invoice) => <span className="font-mono">{invoice._id.slice(-8).toUpperCase()}</span> },
     { header: "Billing month", accessor: "billingPeriod" },
@@ -78,8 +94,14 @@ export default function TenantPaymentsPage() {
     {
       header: "Download",
       accessor: (invoice) => (
-        <Button size="sm" variant="outline" onClick={() => downloadInvoice(invoice)}>
-          Download invoice
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={downloadingInvoiceId === invoice._id}
+          onClick={() => downloadInvoicePdf(invoice)}
+          aria-label={`Download Invoice (PDF) ${invoice._id.slice(-8).toUpperCase()}`}
+        >
+          {downloadingInvoiceId === invoice._id ? "Preparing PDF..." : "Download Invoice (PDF)"}
         </Button>
       ),
     },
@@ -94,6 +116,11 @@ export default function TenantPaymentsPage() {
       {error && (
         <p role="alert" aria-live="polite" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
           {error}
+        </p>
+      )}
+      {message && (
+        <p role="status" aria-live="polite" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+          {message}
         </p>
       )}
 
