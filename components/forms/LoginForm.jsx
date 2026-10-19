@@ -82,43 +82,66 @@ export function LoginForm() {
       </form>
 
       {/* Role explanation & helper */}
-      <div className="pt-4 border-t border-zinc-200/80 dark:border-zinc-800 space-y-3">
+      {/* Role explanation & helper */}
+      <div className="pt-5 border-t border-zinc-200/80 dark:border-zinc-800 space-y-3">
         <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 text-center">
           ⚡ Quick Fill Helper
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => handleQuickFill("admin@rentora.com", "admin123456")}
-            className="p-2.5 rounded-xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 text-left transition-colors text-xs"
-          >
-            <div className="font-semibold text-purple-600 dark:text-purple-400 flex items-center justify-between">
-              <span>👑 Admin (.env)</span>
-              <span className="text-[10px] text-purple-400">Fill</span>
-            </div>
-            <div className="text-[11px] text-zinc-400 truncate mt-0.5">
-              admin@rentora.com
-            </div>
-          </button>
+        <div className="flex flex-col gap-2.5">
+          {/* Admin — centered single */}
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => handleQuickFill("admin@rentora.com", "admin123456")}
+              className="group w-full sm:w-1/2 p-3 rounded-xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 hover:border-purple-500/40 active:scale-[0.98] text-left transition-all duration-200 text-xs"
+            >
+              <div className="font-semibold text-purple-600 dark:text-purple-400 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-sm">👑</span>
+                  <span>Admin</span>
+                </span>
+                <span className="text-[10px] font-medium text-purple-400 opacity-70 group-hover:opacity-100 transition-opacity">
+                  Fill →
+                </span>
+              </div>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => handleQuickFill("owner@rentora.com", "owner123456")}
-            className="p-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 text-left transition-colors text-xs"
-          >
-            <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center justify-between">
-              <span>🏢 Owner</span>
-              <span className="text-[10px] text-emerald-400">Fill</span>
-            </div>
-            <div className="text-[11px] text-zinc-400 truncate mt-0.5">
-              owner@rentora.com
-            </div>
-          </button>
-        </div>
+          {/* Owner + Tenant — side by side */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => handleQuickFill("23201128@uap-bd.edu", "23201128")}
+              className="group p-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 hover:border-emerald-500/40 active:scale-[0.98] text-left transition-all duration-200 text-xs"
+            >
+              <div className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-sm">🏢</span>
+                  <span>Owner</span>
+                </span>
+                <span className="text-[10px] font-medium text-emerald-400 opacity-70 group-hover:opacity-100 transition-opacity">
+                  Fill →
+                </span>
+              </div>
+            </button>
 
-        <div className="text-[11px] text-zinc-400 dark:text-zinc-500 text-center">
-          👤 <strong>Tenants:</strong> Log in using the email and password assigned by your property owner.
+            <button
+              type="button"
+              onClick={() => handleQuickFill("23201111@uap-bd.edu", "23201111")}
+              className="group p-3 rounded-xl border border-blue-500/25 bg-blue-500/5 hover:bg-blue-500/10 hover:border-blue-500/40 active:scale-[0.98] text-left transition-all duration-200 text-xs"
+            >
+              <div className="font-semibold text-blue-600 dark:text-blue-400 flex items-center justify-between gap-2">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-sm">👤</span>
+                  <span>Tenant</span>
+                </span>
+                <span className="text-[10px] font-medium text-blue-400 opacity-70 group-hover:opacity-100 transition-opacity">
+                  Fill →
+                </span>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>
