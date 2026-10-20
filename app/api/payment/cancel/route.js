@@ -5,18 +5,18 @@ export const dynamic = "force-dynamic";
 export async function POST(request) {
   try {
     const formData = await request.formData();
-    const tran_id = formData.get("tran_id") || "";
+    const email = (formData.get("value_a") || "").trim().toLowerCase();
 
-    const redirectUrl = new URL("/payment-test", request.url);
-    redirectUrl.searchParams.set("status", "cancelled");
-    if (tran_id) redirectUrl.searchParams.set("tran_id", tran_id);
+    const redirectUrl = new URL("/login", request.url);
+    redirectUrl.searchParams.set("payment", "cancelled");
+    if (email) redirectUrl.searchParams.set("email", email);
 
     return NextResponse.redirect(redirectUrl, 303);
   } catch {
-    return NextResponse.redirect(new URL("/payment-test?status=cancelled", request.url), 303);
+    return NextResponse.redirect(new URL("/login?payment=cancelled", request.url), 303);
   }
 }
 
 export async function GET(request) {
-  return NextResponse.redirect(new URL("/payment-test?status=cancelled", request.url));
+  return NextResponse.redirect(new URL("/login?payment=cancelled", request.url));
 }

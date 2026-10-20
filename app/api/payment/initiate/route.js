@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import dbConnect from "@/lib/dbConnect";
+import User from "@/lib/models/User";
+import { Invoice } from "@/lib/models/Invoice";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Initiates a Sandbox transaction with SSLCOMMERZ.
+ * Initiates a Sandbox transaction with SSLCOMMERZ for ৳499 Owner Payment.
  * Endpoint: POST /api/payment/initiate
  */
 export async function POST(request) {
@@ -16,7 +19,6 @@ export async function POST(request) {
       "http://localhost:3000"
     ).replace(/\/$/, "");
 
-    // 1. Guard against missing credentials
     if (!storeId || !storePassword) {
       return NextResponse.json(
         {
@@ -28,14 +30,46 @@ export async function POST(request) {
       );
     }
 
-    // 2. Generate unique Transaction ID (max 30 alphanumeric chars for SSLCOMMERZ)
+    let body = {};
+    try {
+      body = await request.json();
+    } catch {
+      body = {};
+    }
+
+    const email = (body.email || "").trim().toLowerCase();
+    const name = (body.name || "Property Owner").trim();
+    const phone = (body.phone || "01711111111").trim();
+    const totalAmount = "499.00"; // Enforce ৳499 for owner activation
+
+    // Unique Transaction ID (max 30 alphanumeric chars)
     const tran_id = `RENTORA_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`;
 
-    // 3. Prepare parameters via FormData as required by SSLCOMMERZ v4
+    // If an owner account exists, ensure or create an Invoice record in Pending status
+    if (email) {
+      await dbConnect();
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        await Invoice.findOneAndUpdate(
+          { ownerId: existingUser._id, type: "owner_registration" },
+          {
+            ownerId: existingUser._id,
+            type: "owner_registration",
+            rentAmount: 499,
+            status: "Pending",
+            tranId: tran_id,
+            dueDate: new Date(),
+          },
+          { upsert: true, new: true }
+        );
+      }
+    }
+
+    // Prepare parameters via FormData as required by SSLCOMMERZ v4
     const formData = new FormData();
     formData.append("store_id", storeId);
     formData.append("store_passwd", storePassword);
-    formData.append("total_amount", "180.00");
+    formData.append("total_amount", totalAmount);
     formData.append("currency", "BDT");
     formData.append("tran_id", tran_id);
     formData.append("success_url", `${appUrl}/api/payment/success`);
@@ -43,26 +77,27 @@ export async function POST(request) {
     formData.append("cancel_url", `${appUrl}/api/payment/cancel`);
     formData.append("ipn_url", `${appUrl}/api/payment/ipn`);
 
+    // Pass owner identification in custom parameters (persisted and returned by SSLCommerz)
+    formData.append("value_a", email);
+    formData.append("value_b", "owner_registration");
+    formData.append("value_c", tran_id);
+
     // Customer Information
-    formData.append("cus_name", "Academic Test Student");
-    formData.append("cus_email", "student.test@rentora.com");
-    formData.append("cus_add1", "Green Road, Farmgate");
-    formData.append("cus_add2", "Dhaka 1205");
+    formData.append("cus_name", name);
+    formData.append("cus_email", email || "owner@rentora.com");
+    formData.append("cus_add1", "Dhaka");
     formData.append("cus_city", "Dhaka");
-    formData.append("cus_state", "Dhaka");
     formData.append("cus_postcode", "1205");
     formData.append("cus_country", "Bangladesh");
-    formData.append("cus_phone", "01711111111");
-    formData.append("cus_fax", "01711111111");
+    formData.append("cus_phone", phone);
 
-    // Shipping & Product Information
+    // Shipment & Product Info
     formData.append("shipping_method", "NO");
     formData.append("num_of_item", "1");
-    formData.append("product_name", "Rentora Demo Service");
-    formData.append("product_category", "Service");
+    formData.append("product_name", "Rentora Owner Activation (৳499)");
+    formData.append("product_category", "Subscription");
     formData.append("product_profile", "general");
 
-    // 4. Send POST request to official Sandbox endpoint with timeout
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -88,7 +123,6 @@ export async function POST(request) {
 
     const data = await sslRes.json();
 
-    // 5. Handle Gateway Response
     if (data?.status === "SUCCESS" && data?.GatewayPageURL) {
       return NextResponse.json({
         success: true,
@@ -109,22 +143,13 @@ export async function POST(request) {
       { status: 400 }
     );
   } catch (err) {
-    if (err.name === "AbortError") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "SSLCOMMERZ sandbox gateway request timed out after 15 seconds.",
-        },
-        { status: 504 }
-      );
-    }
-
     return NextResponse.json(
       {
         success: false,
         error:
-          err.message ||
-          "An unexpected error occurred while communicating with SSLCOMMERZ.",
+          err.name === "AbortError"
+            ? "SSLCOMMERZ gateway request timed out after 15 seconds"
+            : err.message || "Failed to communicate with SSLCOMMERZ gateway",
       },
       { status: 500 }
     );

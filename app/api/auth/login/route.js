@@ -53,7 +53,7 @@ export async function POST(request) {
 
     // 2. Authenticate Owner or Tenant from MongoDB
     await dbConnect();
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail }).lean();
 
     if (!user) {
       return NextResponse.json(
@@ -74,6 +74,21 @@ export async function POST(request) {
       return NextResponse.json(
         { error: "Your account has been deactivated. Please contact your property owner or administrator." },
         { status: 403 }
+      );
+    }
+
+    // Enforce ৳499 payment requirement for property owners
+    if (user.role === "owner" && user.status !== "Paid") {
+      return NextResponse.json(
+        {
+          error: "Property Owner account requires a ৳499 activation payment before signing in.",
+          requiresPayment: true,
+          email: user.email,
+          name: user.name,
+          phone: user.phone || "",
+          amount: 499,
+        },
+        { status: 402 }
       );
     }
 

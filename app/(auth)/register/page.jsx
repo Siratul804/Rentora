@@ -25,6 +25,10 @@ export default function RegisterPage() {
 
     try {
       const res = await register({ name, email, password, phone });
+      if (res.requiresPayment && res.gatewayUrl) {
+        window.location.href = res.gatewayUrl;
+        return;
+      }
       if (res.success) {
         router.push(res.redirectUrl || "/owner/dashboard");
         router.refresh();
@@ -69,15 +73,22 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
-              <span className="text-xl">🏢</span>
-              <div>
-                <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                  Role: Property Owner / Landlord
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🏢</span>
+                <div>
+                  <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                    Role: Property Owner / Landlord
+                  </div>
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                    Full control over properties, leases, and tenant onboarding
+                  </div>
                 </div>
-                <div className="text-[11px] text-emerald-600 dark:text-emerald-400">
-                  Full control over properties, leases, and tenant onboarding
-                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <span className="inline-block text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-white/80 dark:bg-zinc-800 px-2.5 py-1 rounded-xl border border-emerald-500/30 shadow-xs">
+                  ৳499 Fee
+                </span>
               </div>
             </div>
 
@@ -122,7 +133,7 @@ export default function RegisterPage() {
               size="lg"
               disabled={loading}
             >
-              {loading ? "Creating Account..." : "Register as Property Owner"}
+              {loading ? "Connecting to SSLCommerz..." : "Pay ৳499 & Register as Owner"}
             </Button>
           </form>
 
