@@ -19,6 +19,7 @@ export const PORTAL_NAV_ITEMS = {
     { label: "Tenants", href: "/owner/tenants", icon: "👥" },
     { label: "Leases", href: "/owner/leases", icon: "📄" },
     { label: "Invoices", href: "/owner/invoices", icon: "🧾" },
+    { label: "My Bills", href: "/owner/bills", icon: "💳" },
     { label: "Payments", href: "/owner/payments", icon: "💰" },
     { label: "Maintenance", href: "/owner/maintenance", icon: "🔧" },
     { label: "Reports", href: "/owner/reports", icon: "📈" },
