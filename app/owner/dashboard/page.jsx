@@ -1,7 +1,7 @@
 
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +35,22 @@ const glassCard =
 export default function OwnerDashboardPage() {
   const { user } = useAuth();
   const ownerName = user?.name || "Landlord";
+  const [paymentInfo, setPaymentInfo] = useState(null);
+
+  useEffect(() => {
+    async function loadPaymentInfo() {
+      try {
+        const res = await fetch("/api/owner/payment-info");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.payment) setPaymentInfo(data.payment);
+        }
+      } catch (err) {
+        console.error("Failed to load owner payment info:", err);
+      }
+    }
+    loadPaymentInfo();
+  }, []);
 
   return (
     <DashboardShell
@@ -43,6 +59,11 @@ export default function OwnerDashboardPage() {
       subtitle={`Welcome back, ${ownerName}. Here is your portfolio performance summary.`}
       actions={
         <div className="flex items-center gap-2">
+          <Link href="/owner/bills">
+            <Button variant="outline" size="sm">
+              💳 My Bills
+            </Button>
+          </Link>
           <Link href="/owner/invoices">
             <Button variant="outline" size="sm">
               Generate Invoices
@@ -57,6 +78,33 @@ export default function OwnerDashboardPage() {
       }
     >
       <div className="space-y-6">
+
+        {/* Compact My Bills Link / Banner */}
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">
+              💳
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                  Platform Account Status: {paymentInfo?.status === "Paid" ? "Active (Paid ৳499)" : "Pending Payment"}
+                </span>
+                <Badge variant={paymentInfo?.status === "Paid" ? "success" : "warning"} size="sm">
+                  {paymentInfo?.status === "Paid" ? "Paid ✓" : "Pending"}
+                </Badge>
+              </div>
+              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                Property owner platform subscription and licensing bill records.
+              </p>
+            </div>
+          </div>
+          <Link href="/owner/bills">
+            <Button variant="outline" size="sm" className="text-xs h-8">
+              View My Bills →
+            </Button>
+          </Link>
+        </div>
 
         {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
