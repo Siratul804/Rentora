@@ -14,11 +14,10 @@ async function getAuthorizedOwnerId(session) {
     return session.id;
   }
   if (session?.email) {
-    const dbUser = await User.findOne({ email: session.email });
+    const dbUser = await User.findOne({ email: session.email, role: ROLES.OWNER });
     if (dbUser) return dbUser._id;
   }
-  const anyOwner = await User.findOne({ role: ROLES.OWNER });
-  return anyOwner ? anyOwner._id : null;
+  return null;
 }
 
 function generateLeaseId() {
@@ -43,9 +42,10 @@ export async function GET(request) {
     const query = {};
     if (session.role === ROLES.OWNER) {
       const ownerId = await getAuthorizedOwnerId(session);
-      if (ownerId) {
-        query.ownerId = ownerId;
+      if (!ownerId) {
+        return NextResponse.json({ error: "Owner account not found" }, { status: 401 });
       }
+      query.ownerId = ownerId;
     }
 
     const { searchParams } = new URL(request.url);
@@ -192,8 +192,40 @@ export async function POST(request) {
     if (!ownerId) {
       return NextResponse.json(
         { error: "Valid owner account not found. Please log in with a valid owner profile." },
-        { status: 400 }
+        { status: 401 }
       );
+    }
+
+    // Validate tenant reference
+    let resolvedTenantId = null;
+    if (tenantId) {
+      if (!mongoose.Types.ObjectId.isValid(tenantId)) {
+        return NextResponse.json(
+          { error: "Invalid tenant ID format." },
+          { status: 400 }
+        );
+      }
+      const existingTenant = await User.findOne({
+        _id: tenantId,
+        role: ROLES.TENANT,
+        createdBy: ownerId,
+      });
+      if (!existingTenant) {
+        return NextResponse.json(
+          { error: "Selected tenant was not found or does not belong to your account." },
+          { status: 400 }
+        );
+      }
+      resolvedTenantId = existingTenant._id;
+    } else if (tenantEmail) {
+      const existingTenant = await User.findOne({
+        email: tenantEmail.trim().toLowerCase(),
+        role: ROLES.TENANT,
+        createdBy: ownerId,
+      });
+      if (existingTenant) {
+        resolvedTenantId = existingTenant._id;
+      }
     }
 
     // Generate unique leaseId if not provided
@@ -228,7 +260,7 @@ export async function POST(request) {
     const newLease = await Lease.create({
       leaseId: leaseNumber,
       ownerId,
-      tenantId: mongoose.Types.ObjectId.isValid(tenantId) ? tenantId : null,
+      tenantId: resolvedTenantId,
       tenantName: finalTenantName,
       tenantEmail: (tenantEmail || "").trim().toLowerCase(),
       tenantPhone: (tenantPhone || "").trim(),

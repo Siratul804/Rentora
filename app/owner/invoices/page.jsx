@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -8,6 +9,11 @@ import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/tables/DataTable";
 import { formatCurrency } from "@/lib/utils";
 import { downloadInvoice } from "@/lib/invoiceDownload";
+
+function getCurrentBillingPeriod() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
 
 function getNextBillingPeriod() {
   const nextMonth = new Date();
@@ -23,8 +29,8 @@ function formatDate(date) {
 }
 
 export default function OwnerInvoicesPage() {
-  const [billingPeriod, setBillingPeriod] = useState(getNextBillingPeriod);
-  const [dueDate, setDueDate] = useState(() => `${getNextBillingPeriod()}-05`);
+  const [billingPeriod, setBillingPeriod] = useState(getCurrentBillingPeriod);
+  const [dueDate, setDueDate] = useState(() => `${getCurrentBillingPeriod()}-05`);
   const [paymentInstructions, setPaymentInstructions] = useState("");
   const [invoices, setInvoices] = useState([]);
   const [activeLeases, setActiveLeases] = useState([]);
@@ -35,8 +41,21 @@ export default function OwnerInvoicesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState("");
+  const [updatingStatusId, setUpdatingStatusId] = useState("");
+  const [pendingStatus, setPendingStatus] = useState({});
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const queryLeaseId = params.get("leaseId");
+      if (queryLeaseId) {
+        setShowGenerator(true);
+        setSelectedLeaseIds([queryLeaseId]);
+      }
+    }
+  }, []);
 
   const loadInvoices = useCallback(async () => {
     setLoading(true);
@@ -59,7 +78,13 @@ export default function OwnerInvoicesPage() {
       }
       setInvoices(data.invoices);
       setActiveLeases(data.leases);
-      setSelectedLeaseIds(data.leases.map((lease) => lease.id));
+      setSelectedLeaseIds((current) => {
+        if (current.length > 0) {
+          const valid = current.filter((id) => data.leases.some((l) => l.id === id));
+          if (valid.length > 0) return valid;
+        }
+        return data.leases.map((lease) => lease.id);
+      });
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load invoices.");
@@ -158,6 +183,36 @@ export default function OwnerInvoicesPage() {
     }
   }
 
+  async function updateStatus(invoiceId) {
+    const status = pendingStatus[invoiceId];
+    if (!status) return;
+    setUpdatingStatusId(invoiceId);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/owner/invoices", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId, status }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to update status.");
+        return;
+      }
+      setMessage(data.message || "Status updated.");
+      setInvoices((current) =>
+        current.map((inv) =>
+          inv._id === invoiceId ? { ...inv, status: data.invoice.status } : inv
+        )
+      );
+    } catch (err) {
+      setError(err.message || "Failed to update status.");
+    } finally {
+      setUpdatingStatusId("");
+    }
+  }
+
   const columns = [
     { header: "Invoice", accessor: (invoice) => <span className="font-mono">{invoice._id.slice(-8).toUpperCase()}</span> },
     { header: "Tenant", accessor: (invoice) => invoice.tenantName || invoice.tenantId?.name || "—" },
@@ -179,7 +234,32 @@ export default function OwnerInvoicesPage() {
     {
       header: "Actions",
       accessor: (invoice) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <select
+            value={pendingStatus[invoice._id] ?? invoice.status}
+            onChange={(e) =>
+              setPendingStatus((prev) => ({ ...prev, [invoice._id]: e.target.value }))
+            }
+            disabled={updatingStatusId === invoice._id}
+            aria-label={`Change status for invoice ${invoice._id.slice(-8).toUpperCase()}`}
+            className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          >
+            {["Pending", "Paid", "Overdue"].map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={
+              updatingStatusId === invoice._id ||
+              (pendingStatus[invoice._id] ?? invoice.status) === invoice.status
+            }
+            onClick={() => updateStatus(invoice._id)}
+            aria-label={`Update status for invoice ${invoice._id.slice(-8).toUpperCase()}`}
+          >
+            {updatingStatusId === invoice._id ? "Updating..." : "Update"}
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -187,7 +267,7 @@ export default function OwnerInvoicesPage() {
             onClick={() => downloadInvoicePdf(invoice)}
             aria-label={`Download Invoice (PDF) ${invoice._id.slice(-8).toUpperCase()}`}
           >
-            {downloadingInvoiceId === invoice._id ? "Preparing PDF..." : "Download Invoice (PDF)"}
+            {downloadingInvoiceId === invoice._id ? "Preparing..." : "PDF"}
           </Button>
           <Button
             size="sm"
@@ -245,9 +325,17 @@ export default function OwnerInvoicesPage() {
             {loading ? (
               <p role="status" className="text-sm text-zinc-500">Loading active leases...</p>
             ) : activeLeases.length === 0 ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                No active leases with a tenant account cover this billing month.
-              </p>
+              <div className="py-2 space-y-2">
+                <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                  No active leases with a tenant account cover this billing month ({billingPeriod}).
+                </p>
+                <Link
+                  href="/owner/leases"
+                  className="inline-block text-xs font-semibold text-emerald-600 hover:underline dark:text-emerald-400"
+                >
+                  Go to Lease Agreements to create or activate a lease →
+                </Link>
+              </div>
             ) : (
               <form onSubmit={generateInvoices} className="space-y-5">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

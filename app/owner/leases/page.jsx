@@ -5,7 +5,7 @@ import Link from "next/link";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { DataTable } from "@/components/tables/DataTable";
 import { formatCurrency } from "@/lib/utils";
-import { leasesApi, propertiesApi } from "@/lib/api";
+import { leasesApi, propertiesApi, tenantsApi } from "@/lib/api";
 
 const LEASE_STATUSES = ["All", "Active", "Pending", "Expired", "Terminated"];
 
@@ -26,12 +26,15 @@ export default function OwnerLeasesPage() {
   const [formError, setFormError] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
 
-  // Existing property suggestions
+  // Existing property suggestions and tenants
   const [propertiesList, setPropertiesList] = useState([]);
+  const [tenantsList, setTenantsList] = useState([]);
+  const [loadingTenants, setLoadingTenants] = useState(false);
 
   // Form fields state
   const [formData, setFormData] = useState({
     leaseId: "",
+    tenantId: "",
     tenantName: "",
     tenantEmail: "",
     tenantPhone: "",
@@ -79,12 +82,30 @@ export default function OwnerLeasesPage() {
     loadProperties();
   }, []);
 
+  // Fetch tenants created by this owner
+  const fetchTenants = useCallback(async () => {
+    setLoadingTenants(true);
+    try {
+      const data = await tenantsApi.getAll();
+      if (data?.tenants) {
+        setTenantsList(data.tenants);
+        return data.tenants;
+      }
+    } catch (err) {
+      console.error("Failed to fetch tenants:", err);
+    } finally {
+      setLoadingTenants(false);
+    }
+    return [];
+  }, []);
+
   useEffect(() => {
     fetchLeases();
-  }, [fetchLeases]);
+    fetchTenants();
+  }, [fetchLeases, fetchTenants]);
 
   // Open Create Modal
-  const handleOpenCreateModal = () => {
+  const handleOpenCreateModal = async () => {
     setFormError("");
     setFeedbackMessage("");
     const today = new Date();
@@ -95,8 +116,11 @@ export default function OwnerLeasesPage() {
     const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
     const endStr = `${twoYearsLater.getFullYear()}-${pad(twoYearsLater.getMonth() + 1)}-${pad(twoYearsLater.getDate())}`;
 
+    await fetchTenants();
+
     setFormData({
       leaseId: `L-${today.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      tenantId: "",
       tenantName: "",
       tenantEmail: "",
       tenantPhone: "",
@@ -115,6 +139,37 @@ export default function OwnerLeasesPage() {
     setIsCreateOpen(true);
   };
 
+  // Handle Tenant selection
+  const handleTenantSelect = (selectedId) => {
+    const selectedTenant = tenantsList.find((t) => t.id === selectedId);
+    if (!selectedTenant) {
+      setFormData((prev) => ({
+        ...prev,
+        tenantId: "",
+        tenantName: "",
+        tenantEmail: "",
+        tenantPhone: "",
+      }));
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      tenantId: selectedTenant.id,
+      tenantName: selectedTenant.name,
+      tenantEmail: selectedTenant.email || "",
+      tenantPhone: selectedTenant.phone && selectedTenant.phone !== "—" ? selectedTenant.phone : "",
+      propertyName:
+        selectedTenant.property && selectedTenant.property !== "Not Assigned"
+          ? selectedTenant.property
+          : prev.propertyName,
+      unit:
+        selectedTenant.unit && selectedTenant.unit !== "Not Assigned"
+          ? selectedTenant.unit
+          : prev.unit,
+    }));
+  };
+
   // Open Edit Modal
   const handleOpenEditModal = (lease) => {
     setFormError("");
@@ -123,6 +178,7 @@ export default function OwnerLeasesPage() {
 
     setFormData({
       leaseId: lease.leaseId || lease.id,
+      tenantId: lease.tenantId || "",
       tenantName: lease.tenantName || lease.tenant || "",
       tenantEmail: lease.tenantEmail || "",
       tenantPhone: lease.tenantPhone || "",
@@ -151,11 +207,18 @@ export default function OwnerLeasesPage() {
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
+
+    if (!formData.tenantId) {
+      setFormError("Please select a tenant for this lease agreement.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const payload = {
         leaseId: formData.leaseId.trim(),
+        tenantId: formData.tenantId,
         tenantName: formData.tenantName.trim(),
         tenantEmail: formData.tenantEmail.trim(),
         tenantPhone: formData.tenantPhone.trim(),
@@ -177,32 +240,7 @@ export default function OwnerLeasesPage() {
       await fetchLeases();
     } catch (err) {
       console.error("Create lease error:", err);
-      if (err.message && !err.message.includes("401") && !err.message.includes("403")) {
-        const fallbackLease = {
-          id: "lease-" + Date.now(),
-          leaseId: formData.leaseId || `L-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-          tenant: formData.tenantName,
-          tenantName: formData.tenantName,
-          tenantEmail: formData.tenantEmail,
-          tenantPhone: formData.tenantPhone,
-          propertyName: formData.propertyName,
-          unit: formData.unit,
-          property: formData.unit ? `${formData.propertyName} (${formData.unit})` : formData.propertyName,
-          startDate: formData.startDate,
-          endDate: formData.endDate,
-          rent: Number(formData.rent),
-          deposit: Number(formData.deposit || 0),
-          billingCycle: formData.billingCycle,
-          status: formData.status,
-          terms: formData.terms ? formData.terms.split("\n") : [],
-          notes: formData.notes,
-        };
-        setLeases((prev) => [fallbackLease, ...prev]);
-        setFeedbackMessage("Lease created successfully!");
-        setIsCreateOpen(false);
-      } else {
-        setFormError(err.message || "Failed to create lease.");
-      }
+      setFormError(err.message || "Failed to create lease.");
     } finally {
       setSubmitting(false);
     }
@@ -217,6 +255,7 @@ export default function OwnerLeasesPage() {
 
     try {
       const payload = {
+        tenantId: formData.tenantId || activeLease.tenantId || null,
         tenantName: formData.tenantName.trim(),
         tenantEmail: formData.tenantEmail.trim(),
         tenantPhone: formData.tenantPhone.trim(),
@@ -414,6 +453,12 @@ export default function OwnerLeasesPage() {
       className: "text-right",
       accessor: (row) => (
         <div className="flex items-center justify-end gap-1.5">
+          <Link
+            href={`/owner/invoices?leaseId=${row.id}`}
+            className="px-2.5 py-1 text-xs font-medium rounded-lg text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 backdrop-blur-sm border border-emerald-500/20 transition-all duration-200 shadow-sm"
+          >
+            Invoice
+          </Link>
           <button
             onClick={() => handleOpenViewModal(row)}
             className="px-2.5 py-1 text-xs font-medium rounded-lg text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-white/40 dark:bg-white/5 hover:bg-white/80 dark:hover:bg-white/10 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10 transition-all duration-200 shadow-sm"
@@ -632,62 +677,103 @@ export default function OwnerLeasesPage() {
               </div>
             )}
 
-            <form onSubmit={handleCreateSubmit} className="mt-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Agreement / Lease ID <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.leaseId}
-                    onChange={(e) => setFormData({ ...formData, leaseId: e.target.value })}
-                    placeholder="e.g. L-2025-05"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
+            {loadingTenants ? (
+              <div className="mt-8 p-8 text-center text-sm text-zinc-500 dark:text-zinc-400 animate-pulse">
+                Loading your tenants...
+              </div>
+            ) : tenantsList.length === 0 ? (
+              <div className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-6 text-center space-y-3">
+                <div className="text-amber-800 dark:text-amber-300 font-semibold text-base">
+                  No Tenants Found
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Tenant Full Name <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.tenantName}
-                    onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
-                    placeholder="e.g. Shakib Al Hasan"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
+                <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
+                  You have not created any tenants yet. A lease agreement must be associated with an existing tenant created by you.
+                </p>
+                <div className="pt-2">
+                  <Link
+                    href="/owner/tenants"
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md"
+                  >
+                    + Go to Tenants to Add One
+                  </Link>
                 </div>
               </div>
+            ) : (
+              <form onSubmit={handleCreateSubmit} className="mt-5 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                    Select Tenant <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.tenantId}
+                    onChange={(e) => handleTenantSelect(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  >
+                    <option value="">-- Choose an existing tenant --</option>
+                    {tenantsList.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.email}){t.property && t.property !== "Not Assigned" ? ` — ${t.property}` : ""}{t.unit && t.unit !== "Not Assigned" ? ` (${t.unit})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Tenant Email
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.tenantEmail}
-                    onChange={(e) => setFormData({ ...formData, tenantEmail: e.target.value })}
-                    placeholder="tenant@example.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      Agreement / Lease ID <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.leaseId}
+                      onChange={(e) => setFormData({ ...formData, leaseId: e.target.value })}
+                      placeholder="e.g. L-2025-05"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      Tenant Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.tenantName}
+                      onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
+                      placeholder="Auto-filled from selected tenant"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Tenant Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.tenantPhone}
-                    onChange={(e) => setFormData({ ...formData, tenantPhone: e.target.value })}
-                    placeholder="+880 1711-000000"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      Tenant Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.tenantEmail}
+                      onChange={(e) => setFormData({ ...formData, tenantEmail: e.target.value })}
+                      placeholder="tenant@example.com"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                      Tenant Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.tenantPhone}
+                      onChange={(e) => setFormData({ ...formData, tenantPhone: e.target.value })}
+                      placeholder="+880 1711-000000"
+                      className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    />
+                  </div>
                 </div>
-              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -827,6 +913,7 @@ export default function OwnerLeasesPage() {
                 </button>
               </div>
             </form>
+            )}
           </div>
         </div>
       )}
@@ -1133,6 +1220,12 @@ export default function OwnerLeasesPage() {
                   Download PDF
                 </button>
                 <div className="flex gap-2">
+                  <Link
+                    href={`/owner/invoices?leaseId=${activeLease.id || activeLease.leaseId}`}
+                    className="px-4 py-2 text-xs font-semibold rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-sm"
+                  >
+                    Generate Rent Invoice
+                  </Link>
                   <button
                     onClick={() => {
                       setIsViewOpen(false);
