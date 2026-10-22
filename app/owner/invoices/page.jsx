@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -8,6 +9,11 @@ import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/tables/DataTable";
 import { formatCurrency } from "@/lib/utils";
 import { downloadInvoice } from "@/lib/invoiceDownload";
+
+function getCurrentBillingPeriod() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
 
 function getNextBillingPeriod() {
   const nextMonth = new Date();
@@ -23,8 +29,8 @@ function formatDate(date) {
 }
 
 export default function OwnerInvoicesPage() {
-  const [billingPeriod, setBillingPeriod] = useState(getNextBillingPeriod);
-  const [dueDate, setDueDate] = useState(() => `${getNextBillingPeriod()}-05`);
+  const [billingPeriod, setBillingPeriod] = useState(getCurrentBillingPeriod);
+  const [dueDate, setDueDate] = useState(() => `${getCurrentBillingPeriod()}-05`);
   const [paymentInstructions, setPaymentInstructions] = useState("");
   const [invoices, setInvoices] = useState([]);
   const [activeLeases, setActiveLeases] = useState([]);
@@ -37,6 +43,17 @@ export default function OwnerInvoicesPage() {
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const queryLeaseId = params.get("leaseId");
+      if (queryLeaseId) {
+        setShowGenerator(true);
+        setSelectedLeaseIds([queryLeaseId]);
+      }
+    }
+  }, []);
 
   const loadInvoices = useCallback(async () => {
     setLoading(true);
@@ -59,7 +76,13 @@ export default function OwnerInvoicesPage() {
       }
       setInvoices(data.invoices);
       setActiveLeases(data.leases);
-      setSelectedLeaseIds(data.leases.map((lease) => lease.id));
+      setSelectedLeaseIds((current) => {
+        if (current.length > 0) {
+          const valid = current.filter((id) => data.leases.some((l) => l.id === id));
+          if (valid.length > 0) return valid;
+        }
+        return data.leases.map((lease) => lease.id);
+      });
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load invoices.");
@@ -245,9 +268,17 @@ export default function OwnerInvoicesPage() {
             {loading ? (
               <p role="status" className="text-sm text-zinc-500">Loading active leases...</p>
             ) : activeLeases.length === 0 ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
-                No active leases with a tenant account cover this billing month.
-              </p>
+              <div className="py-2 space-y-2">
+                <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                  No active leases with a tenant account cover this billing month ({billingPeriod}).
+                </p>
+                <Link
+                  href="/owner/leases"
+                  className="inline-block text-xs font-semibold text-emerald-600 hover:underline dark:text-emerald-400"
+                >
+                  Go to Lease Agreements to create or activate a lease →
+                </Link>
+              </div>
             ) : (
               <form onSubmit={generateInvoices} className="space-y-5">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

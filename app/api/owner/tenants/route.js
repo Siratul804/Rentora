@@ -1,9 +1,21 @@
+import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
 import { getServerSession } from "@/lib/session";
 import { ROLES } from "@/lib/auth";
+
+async function getAuthorizedOwnerId(session) {
+  if (mongoose.Types.ObjectId.isValid(session?.id)) {
+    return session.id;
+  }
+  if (session?.email) {
+    const dbUser = await User.findOne({ email: session.email, role: ROLES.OWNER });
+    if (dbUser) return dbUser._id;
+  }
+  return null;
+}
 
 export async function GET() {
   try {
@@ -18,11 +30,16 @@ export async function GET() {
 
     await dbConnect();
 
-    // Fetch tenants created by this owner or all tenants if master owner
-    const query = { role: ROLES.TENANT };
-    if (session.id && session.id !== "owner-1") {
-      query.$or = [{ createdBy: session.id }, { createdBy: null }];
+    const ownerId = await getAuthorizedOwnerId(session);
+    if (!ownerId) {
+      return NextResponse.json(
+        { error: "Owner account not found. Please sign in again." },
+        { status: 401 }
+      );
     }
+
+    // Fetch tenants created by this authenticated owner
+    const query = { role: ROLES.TENANT, createdBy: ownerId };
 
     const tenants = await User.find(query, { passwordHash: 0 })
       .sort({ createdAt: -1 })
@@ -93,6 +110,14 @@ export async function POST(request) {
 
     await dbConnect();
 
+    const ownerId = await getAuthorizedOwnerId(session);
+    if (!ownerId) {
+      return NextResponse.json(
+        { error: "Owner account not found. Please sign in again." },
+        { status: 401 }
+      );
+    }
+
     // Check if user already exists
     const existing = await User.findOne({ email: cleanEmail });
     if (existing) {
@@ -114,7 +139,7 @@ export async function POST(request) {
       unit: unit ? unit.trim() : "General Unit",
       rentStatus: rentStatus || "Pending",
       leaseEnd: leaseEnd ? leaseEnd.trim() : "",
-      createdBy: session.id !== "owner-1" ? session.id : null,
+      createdBy: ownerId,
     });
 
     return NextResponse.json(

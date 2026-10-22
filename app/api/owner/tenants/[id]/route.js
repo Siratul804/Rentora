@@ -1,9 +1,21 @@
+import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
 import { getServerSession } from "@/lib/session";
 import { ROLES } from "@/lib/auth";
+
+async function getAuthorizedOwnerId(session) {
+  if (mongoose.Types.ObjectId.isValid(session?.id)) {
+    return session.id;
+  }
+  if (session?.email) {
+    const dbUser = await User.findOne({ email: session.email, role: ROLES.OWNER });
+    if (dbUser) return dbUser._id;
+  }
+  return null;
+}
 
 export async function GET(request, { params }) {
   try {
@@ -23,10 +35,12 @@ export async function GET(request, { params }) {
 
     await dbConnect();
 
-    const filter = { _id: id, role: ROLES.TENANT };
-    if (session.id && session.id !== "owner-1") {
-      filter.$or = [{ createdBy: session.id }, { createdBy: null }];
+    const ownerId = await getAuthorizedOwnerId(session);
+    if (!ownerId) {
+      return NextResponse.json({ error: "Owner account not found" }, { status: 401 });
     }
+
+    const filter = { _id: id, role: ROLES.TENANT, createdBy: ownerId };
 
     const tenant = await User.findOne(filter, { passwordHash: 0 }).lean();
     if (!tenant) {
@@ -97,10 +111,12 @@ async function handleUpdateTenant(request, { params }) {
 
     await dbConnect();
 
-    const filter = { _id: id, role: ROLES.TENANT };
-    if (session.id && session.id !== "owner-1") {
-      filter.$or = [{ createdBy: session.id }, { createdBy: null }];
+    const ownerId = await getAuthorizedOwnerId(session);
+    if (!ownerId) {
+      return NextResponse.json({ error: "Owner account not found" }, { status: 401 });
     }
+
+    const filter = { _id: id, role: ROLES.TENANT, createdBy: ownerId };
 
     const tenant = await User.findOne(filter);
     if (!tenant) {
@@ -235,10 +251,13 @@ export async function DELETE(request, { params }) {
     }
 
     await dbConnect();
-    const filter = { _id: id, role: ROLES.TENANT };
-    if (session.id && session.id !== "owner-1") {
-      filter.$or = [{ createdBy: session.id }, { createdBy: null }];
+
+    const ownerId = await getAuthorizedOwnerId(session);
+    if (!ownerId) {
+      return NextResponse.json({ error: "Owner account not found" }, { status: 401 });
     }
+
+    const filter = { _id: id, role: ROLES.TENANT, createdBy: ownerId };
 
     const deleted = await User.findOneAndDelete(filter);
 

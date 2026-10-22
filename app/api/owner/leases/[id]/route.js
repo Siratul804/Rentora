@@ -13,11 +13,10 @@ async function getAuthorizedOwnerId(session) {
     return session.id;
   }
   if (session?.email) {
-    const dbUser = await User.findOne({ email: session.email });
+    const dbUser = await User.findOne({ email: session.email, role: ROLES.OWNER });
     if (dbUser) return dbUser._id;
   }
-  const anyOwner = await User.findOne({ role: ROLES.OWNER });
-  return anyOwner ? anyOwner._id : null;
+  return null;
 }
 
 function buildLeaseLookupQuery(rawId, ownerId = null) {
@@ -57,6 +56,9 @@ export async function GET(request, { params }) {
     let ownerId = null;
     if (session.role === ROLES.OWNER) {
       ownerId = await getAuthorizedOwnerId(session);
+      if (!ownerId) {
+        return NextResponse.json({ error: "Owner account not found" }, { status: 401 });
+      }
     }
 
     const query = buildLeaseLookupQuery(targetId, ownerId);
@@ -126,6 +128,7 @@ export async function PATCH(request, { params }) {
       tenantName,
       tenantEmail,
       tenantPhone,
+      tenantId,
       property,
       propertyName,
       unit,
@@ -144,6 +147,9 @@ export async function PATCH(request, { params }) {
     let ownerId = null;
     if (session.role === ROLES.OWNER) {
       ownerId = await getAuthorizedOwnerId(session);
+      if (!ownerId) {
+        return NextResponse.json({ error: "Owner account not found" }, { status: 401 });
+      }
     }
 
     const query = buildLeaseLookupQuery(targetId, ownerId);
@@ -154,6 +160,24 @@ export async function PATCH(request, { params }) {
     }
 
     // Apply updates
+    if (tenantId !== undefined) {
+      if (tenantId && mongoose.Types.ObjectId.isValid(tenantId)) {
+        const existingTenant = await User.findOne({
+          _id: tenantId,
+          role: ROLES.TENANT,
+          createdBy: ownerId,
+        });
+        if (!existingTenant) {
+          return NextResponse.json(
+            { error: "Selected tenant was not found or does not belong to your account." },
+            { status: 400 }
+          );
+        }
+        existing.tenantId = existingTenant._id;
+      } else {
+        existing.tenantId = null;
+      }
+    }
     if (tenantName !== undefined || tenant !== undefined) {
       const finalName = (tenantName || tenant || "").trim();
       if (!finalName) {
@@ -307,6 +331,9 @@ export async function DELETE(request, { params }) {
     let ownerId = null;
     if (session.role === ROLES.OWNER) {
       ownerId = await getAuthorizedOwnerId(session);
+      if (!ownerId) {
+        return NextResponse.json({ error: "Owner account not found" }, { status: 401 });
+      }
     }
 
     const query = buildLeaseLookupQuery(targetId, ownerId);

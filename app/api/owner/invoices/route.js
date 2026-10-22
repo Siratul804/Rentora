@@ -36,6 +36,7 @@ async function getOwnerId() {
 }
 
 function isLeaseActiveForPeriod(lease, billingPeriod) {
+  if (!lease.startDate || !lease.endDate) return false;
   const [year, month] = billingPeriod.split("-").map(Number);
   const periodStart = `${billingPeriod}-01`;
   const periodEnd = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
@@ -81,6 +82,7 @@ export async function GET(request) {
         ? await User.find({
             role: "tenant",
             isActive: { $ne: false },
+            createdBy: owner.ownerId,
             $or: tenantConditions,
           }).select("name email")
         : [];
@@ -141,15 +143,20 @@ export async function POST(request) {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return NextResponse.json({ error: "Request body must be a JSON object." }, { status: 400 });
     }
-    const { leaseIds, billingPeriod, dueDate, paymentInstructions = "" } = body;
+    const rawLeaseIds = Array.isArray(body.leaseIds)
+      ? body.leaseIds
+      : body.leaseId
+      ? [body.leaseId]
+      : [];
+
     if (
-      !Array.isArray(leaseIds) ||
-      !leaseIds.length ||
-      leaseIds.some((id) => !mongoose.isValidObjectId(id)) ||
-      new Set(leaseIds).size !== leaseIds.length
+      !rawLeaseIds.length ||
+      rawLeaseIds.some((id) => !mongoose.isValidObjectId(id)) ||
+      new Set(rawLeaseIds).size !== rawLeaseIds.length
     ) {
       return NextResponse.json({ error: "Select at least one valid active lease." }, { status: 400 });
     }
+    const { billingPeriod, dueDate, paymentInstructions = "" } = body;
     if (!validPeriod(billingPeriod)) {
       return NextResponse.json({ error: "Select a valid billing month." }, { status: 400 });
     }
@@ -167,11 +174,11 @@ export async function POST(request) {
     }
 
     const leases = await Lease.find({
-      _id: { $in: leaseIds },
+      _id: { $in: rawLeaseIds },
       ownerId: owner.ownerId,
       status: "Active",
     }).lean();
-    if (leases.length !== leaseIds.length) {
+    if (leases.length !== rawLeaseIds.length) {
       return NextResponse.json({ error: "One or more selected leases are no longer active or accessible." }, { status: 400 });
     }
     if (leases.some((lease) => !isLeaseActiveForPeriod(lease, billingPeriod))) {
@@ -188,6 +195,7 @@ export async function POST(request) {
       ? await User.find({
           role: "tenant",
           isActive: { $ne: false },
+          createdBy: owner.ownerId,
           $or: tenantConditions,
         }).select("name email")
       : [];
@@ -207,7 +215,7 @@ export async function POST(request) {
     }
 
     const existing = await Invoice.find({
-      leaseId: { $in: leaseIds },
+      leaseId: { $in: rawLeaseIds },
       billingPeriod,
     }).select("leaseId");
     const existingLeaseIds = new Set(existing.map((invoice) => invoice.leaseId.toString()));
@@ -268,11 +276,19 @@ export async function POST(request) {
       });
     }
 
-    const message = created.length
-      ? `${created.length} invoice${created.length === 1 ? "" : "s"} generated and tenant${created.length === 1 ? "" : "s"} notified.` +
-        (duplicates.length ? ` ${duplicates.length} already existed for this month.` : "")
-      : `Invoices for this billing month already exist for all selected leases.`;
-    return NextResponse.json({ message, invoices: created, duplicates }, { status: created.length ? 201 : 200 });
+    if (created.length === 0 && duplicates.length > 0) {
+      return NextResponse.json(
+        {
+          error: "An invoice for this lease and billing period already exists.",
+          duplicates,
+        },
+        { status: 409 }
+      );
+    }
+
+    const message = `${created.length} invoice${created.length === 1 ? "" : "s"} generated and tenant${created.length === 1 ? "" : "s"} notified.` +
+      (duplicates.length ? ` ${duplicates.length} already existed for this month.` : "");
+    return NextResponse.json({ message, invoices: created, duplicates }, { status: 201 });
   } catch (error) {
     console.error("Generate owner invoices error:", error);
     return NextResponse.json({ error: "Failed to generate invoices. Please try again." }, { status: 500 });
