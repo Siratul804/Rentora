@@ -54,7 +54,10 @@ export async function GET(request) {
     const owner = await getOwnerId();
     if (owner.response) return owner.response;
 
-    const invoices = await Invoice.find({ ownerId: owner.ownerId })
+    const invoices = await Invoice.find({
+      ownerId: owner.ownerId,
+      $or: [{ type: "rent" }, { type: { $exists: false } }],
+    })
       .sort({ createdAt: -1 })
       .populate("tenantId", "name email")
       .lean();
@@ -230,6 +233,7 @@ export async function POST(request) {
       let invoice;
       try {
         invoice = await Invoice.create({
+          type: "rent",
           leaseId: lease._id,
           tenantId: tenant._id,
           tenantName: tenant.name || lease.tenantName,
@@ -292,5 +296,71 @@ export async function POST(request) {
   } catch (error) {
     console.error("Generate owner invoices error:", error);
     return NextResponse.json({ error: "Failed to generate invoices. Please try again." }, { status: 500 });
+  }
+}
+
+export async function PATCH(request) {
+  try {
+    const owner = await getOwnerId();
+    if (owner.response) return owner.response;
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
+    }
+
+    const { invoiceId, status } = body || {};
+    if (!invoiceId || !mongoose.isValidObjectId(invoiceId)) {
+      return NextResponse.json({ error: "Valid invoice ID is required." }, { status: 400 });
+    }
+
+    const ALLOWED_STATUSES = ["Pending", "Paid", "Overdue"];
+    if (!status || !ALLOWED_STATUSES.includes(status)) {
+      return NextResponse.json(
+        { error: `Invalid payment status. Allowed values: ${ALLOWED_STATUSES.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const invoice = await Invoice.findOne({ _id: invoiceId, ownerId: owner.ownerId });
+    if (!invoice) {
+      return NextResponse.json({ error: "Invoice not found or unauthorized." }, { status: 404 });
+    }
+
+    const prevStatus = invoice.status;
+    invoice.status = status;
+    await invoice.save();
+
+    await AuditLog.create({
+      action: "update-invoice-status",
+      invoiceId: invoice._id,
+      tenantId: invoice.tenantId,
+      propertyId: invoice.propertyId,
+      ownerId: owner.ownerId,
+      status,
+      prevStatus,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Invoice payment status updated to "${status}".`,
+      invoice: {
+        _id: invoice._id.toString(),
+        type: invoice.type,
+        status: invoice.status,
+        billingPeriod: invoice.billingPeriod,
+        rentAmount: invoice.rentAmount,
+        dueDate: invoice.dueDate,
+        tenantName: invoice.tenantName,
+        propertyName: invoice.propertyName,
+        unit: invoice.unit,
+        updatedAt: invoice.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Update invoice payment status error:", error);
+    return NextResponse.json({ error: "Failed to update payment status." }, { status: 500 });
   }
 }

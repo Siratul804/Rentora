@@ -41,6 +41,8 @@ export default function OwnerInvoicesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [sendingInvoiceId, setSendingInvoiceId] = useState("");
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState("");
+  const [updatingStatusId, setUpdatingStatusId] = useState("");
+  const [pendingStatus, setPendingStatus] = useState({});
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -181,6 +183,36 @@ export default function OwnerInvoicesPage() {
     }
   }
 
+  async function updateStatus(invoiceId) {
+    const status = pendingStatus[invoiceId];
+    if (!status) return;
+    setUpdatingStatusId(invoiceId);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/owner/invoices", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId, status }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setError(data.error || "Failed to update status.");
+        return;
+      }
+      setMessage(data.message || "Status updated.");
+      setInvoices((current) =>
+        current.map((inv) =>
+          inv._id === invoiceId ? { ...inv, status: data.invoice.status } : inv
+        )
+      );
+    } catch (err) {
+      setError(err.message || "Failed to update status.");
+    } finally {
+      setUpdatingStatusId("");
+    }
+  }
+
   const columns = [
     { header: "Invoice", accessor: (invoice) => <span className="font-mono">{invoice._id.slice(-8).toUpperCase()}</span> },
     { header: "Tenant", accessor: (invoice) => invoice.tenantName || invoice.tenantId?.name || "—" },
@@ -202,7 +234,32 @@ export default function OwnerInvoicesPage() {
     {
       header: "Actions",
       accessor: (invoice) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <select
+            value={pendingStatus[invoice._id] ?? invoice.status}
+            onChange={(e) =>
+              setPendingStatus((prev) => ({ ...prev, [invoice._id]: e.target.value }))
+            }
+            disabled={updatingStatusId === invoice._id}
+            aria-label={`Change status for invoice ${invoice._id.slice(-8).toUpperCase()}`}
+            className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          >
+            {["Pending", "Paid", "Overdue"].map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={
+              updatingStatusId === invoice._id ||
+              (pendingStatus[invoice._id] ?? invoice.status) === invoice.status
+            }
+            onClick={() => updateStatus(invoice._id)}
+            aria-label={`Update status for invoice ${invoice._id.slice(-8).toUpperCase()}`}
+          >
+            {updatingStatusId === invoice._id ? "Updating..." : "Update"}
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -210,7 +267,7 @@ export default function OwnerInvoicesPage() {
             onClick={() => downloadInvoicePdf(invoice)}
             aria-label={`Download Invoice (PDF) ${invoice._id.slice(-8).toUpperCase()}`}
           >
-            {downloadingInvoiceId === invoice._id ? "Preparing PDF..." : "Download Invoice (PDF)"}
+            {downloadingInvoiceId === invoice._id ? "Preparing..." : "PDF"}
           </Button>
           <Button
             size="sm"
