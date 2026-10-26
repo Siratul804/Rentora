@@ -38,9 +38,7 @@ export default function Home() {
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 py-16 max-w-6xl mx-auto w-full text-center space-y-12">
         <div className="space-y-4 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-semibold">
-            <span>✨</span> Next-Generation Rental Operations & On-Demand Dispatch
-          </div>
+
           <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight">
             One Platform. <br />
             <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 bg-clip-text text-transparent">
@@ -139,31 +137,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Architecture Visual Diagram */}
-        <div className="w-full p-8 rounded-3xl border border-zinc-800 bg-zinc-900/40 text-left space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider font-bold text-zinc-400">
-              System Architecture & Routing Flow
-            </span>
-            <Badge variant="neutral" size="sm">Multi-Tenant RBAC</Badge>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-zinc-950 font-mono text-xs text-zinc-300 overflow-x-auto leading-relaxed border border-zinc-800/80">
-            <pre className="text-emerald-400 font-bold mb-2">                    RENTORA WEB APP</pre>
-            <pre className="text-zinc-500">                          │</pre>
-            <pre className="text-teal-400 font-bold">                       Next.js</pre>
-            <pre className="text-zinc-500">                          │</pre>
-            <pre className="text-zinc-400">          ┌───────────────┼───────────────┐</pre>
-            <pre className="text-zinc-400">          ↓               ↓               ↓</pre>
-            <pre><span className="text-purple-400 font-bold">       /admin</span><span className="text-zinc-500">           </span><span className="text-emerald-400 font-bold">/owner</span><span className="text-zinc-500">          </span><span className="text-blue-400 font-bold">/tenant</span></pre>
-            <pre className="text-zinc-400">          │               │               │</pre>
-            <pre className="text-zinc-400">          └───────────────┼───────────────┘</pre>
-            <pre className="text-zinc-500">                          ↓</pre>
-            <pre className="text-amber-400 font-bold">                     Backend API</pre>
-            <pre className="text-zinc-500">                          ↓</pre>
-            <pre className="text-emerald-500 font-bold">                       MongoDB</pre>
-          </div>
-        </div>
       </main>
 
       {/* Footer */}
