@@ -9,12 +9,14 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "chromedriver": "^156.0.0",
     "dotenv": "^18.0.5",
     "jose": "^6.2.12",
     "mongoose": "^9.10.3",
     "next": "16.3.7",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "selenium-webdriver": "^4.51.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

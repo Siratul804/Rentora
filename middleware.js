@@ -90,6 +90,18 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/provider-job-history")) {
+    if (!isAuthenticated) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    if (role !== "owner" && role !== "admin") {
+      return NextResponse.redirect(new URL(getRoleDashboardPath(role), request.url));
+    }
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 
@@ -98,6 +110,8 @@ export const config = {
     "/admin/:path*",
     "/owner/:path*",
     "/tenant/:path*",
+    "/provider-job-history",
+    "/provider-job-history/:path*",
     "/login",
     "/register",
   ],

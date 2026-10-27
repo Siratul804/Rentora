@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +11,7 @@ export const PORTAL_NAV_ITEMS = {
     { label: "Owners", href: "/admin/owners", icon: "🏢" },
     { label: "Subscriptions", href: "/admin/subscriptions", icon: "💳" },
     { label: "Service Providers", href: "/admin/service-providers", icon: "🛠️" },
+    { label: "Provider Job History", href: "/provider-job-history", icon: "📋" },
     { label: "Reports", href: "/admin/reports", icon: "📈" },
   ],
   owner: [
@@ -22,6 +24,7 @@ export const PORTAL_NAV_ITEMS = {
     { label: "My Bills", href: "/owner/bills", icon: "💳" },
     { label: "Payments", href: "/owner/payments", icon: "💰" },
     { label: "Maintenance", href: "/owner/maintenance", icon: "🔧" },
+    { label: "Provider Job History", href: "/provider-job-history", icon: "📋" },
   ],
   tenant: [
     { label: "Dashboard", href: "/tenant/dashboard", icon: "🏠" },
@@ -64,9 +67,13 @@ export function Sidebar({ portal = "owner" }) {
         {/* Brand Header */}
         <div className="p-3 sm:p-5 border-b border-zinc-200/80 dark:border-zinc-800/80">
           <Link href="/" aria-label="Rentora home" className="flex items-center justify-center sm:justify-start gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white font-bold shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-              R
-            </div>
+            <Image
+              src="/rentora_logo.png"
+              alt="Rentora"
+              width={38}
+              height={40}
+              className="rounded-2xl transition-transform group-hover:scale-105"
+            />
             <div className="hidden sm:block">
               <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-zinc-100">
                 Rentora

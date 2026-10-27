@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -8,53 +8,68 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/forms/FormField";
 
-const MY_REQUESTS = [
-  {
-    id: "M-301",
-    category: "Plumbing",
-    title: "Master bathroom faucet leaking and low pressure",
-    submittedAt: "2026-09-28",
-    status: "Dispatched",
-    assignedTech: "Kamal Plumbing Co. (Mr. Kamal - +880 1711-889900)",
-    eta: "Today, 3:30 PM",
-  },
-  {
-    id: "M-289",
-    category: "Electrical",
-    title: "Balcony light switch replacement",
-    submittedAt: "2026-08-15",
-    status: "Resolved",
-    assignedTech: "VoltMasters BD",
-    eta: "Completed",
-  },
-];
+const mapRequest = (request) => ({
+  id: request.id,
+  category: request.category,
+  title: request.title,
+  submittedAt: request.createdAt
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(request.createdAt))
+    : "—",
+  status: request.status,
+  assignedTech: request.assignedTo || "Unassigned",
+});
 
 export default function TenantMaintenancePage() {
-  const [requests, setRequests] = useState(MY_REQUESTS);
+  const [requests, setRequests] = useState([]);
   const [category, setCategory] = useState("Plumbing");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const handleSubmit = (e) => {
+  const loadRequests = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/tenant/maintenance", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to load your maintenance requests.");
+      setRequests((data.requests || []).map(mapRequest));
+    } catch (loadError) {
+      setError(loadError.message || "Failed to load your maintenance requests.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRequests();
+  }, [loadRequests]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
-
-    const newReq = {
-      id: `M-${Math.floor(100 + Math.random() * 900)}`,
-      category,
-      title: title.trim(),
-      submittedAt: "Just now",
-      status: "Pending",
-      assignedTech: "Dispatching certified technician...",
-      eta: "Within 2 hours",
-    };
-
-    setRequests([newReq, ...requests]);
-    setTitle("");
-    setDescription("");
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3500);
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+    try {
+      const response = await fetch("/api/tenant/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category, title, description }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to submit your service request.");
+      setRequests((current) => [mapRequest(data.request), ...current]);
+      setTitle("");
+      setDescription("");
+      setSuccess("Request submitted. Your property owner can now see it.");
+    } catch (submitError) {
+      setError(submitError.message || "Failed to submit your service request.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Helper for Glass Status Badges
@@ -111,12 +126,13 @@ export default function TenantMaintenancePage() {
               </p>
             </div>
 
-            {submitted && (
+            {success && (
               <div className="p-3.5 mb-5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold backdrop-blur-md shadow-lg shadow-emerald-500/10 animate-fadeIn flex items-center gap-2">
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>✓ Request submitted! Landlord and dispatch team notified.</span>
+                <span>{success}</span>
               </div>
             )}
+            {error && <p role="alert" className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3.5 text-xs font-semibold text-rose-700 dark:text-rose-200">{error}</p>}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1.5">
@@ -159,9 +175,10 @@ export default function TenantMaintenancePage() {
 
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.98] shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/35 transition-all duration-200"
+                disabled={submitting}
+                className="w-full py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-[0.98] shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/35 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Submit Ticket
+                {submitting ? "Submitting…" : "Submit Ticket"}
               </button>
             </form>
           </div>
@@ -185,7 +202,11 @@ export default function TenantMaintenancePage() {
             </div>
 
             <div className="space-y-3.5">
-              {requests.map((req) => (
+              {loading ? (
+                <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">Loading your requests…</p>
+              ) : requests.length === 0 ? (
+                <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">You have not submitted any maintenance requests.</p>
+              ) : requests.map((req) => (
                 <div
                   key={req.id}
                   className="group relative overflow-hidden p-5 rounded-2xl border border-white/60 dark:border-white/10 bg-white/50 dark:bg-white/[0.04] backdrop-blur-xl hover:border-emerald-500/30 dark:hover:border-emerald-500/30 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 space-y-3"

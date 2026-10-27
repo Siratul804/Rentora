@@ -58,7 +58,7 @@ export default function OwnerDashboardPage() {
       title="Landlord Dashboard"
       subtitle={`Welcome back, ${ownerName}. Here is your portfolio performance summary.`}
       actions={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/owner/bills">
             <Button variant="outline" size="sm">
               💳 My Bills
@@ -67,6 +67,11 @@ export default function OwnerDashboardPage() {
           <Link href="/owner/invoices">
             <Button variant="outline" size="sm">
               Generate Invoices
+            </Button>
+          </Link>
+          <Link href="/provider-job-history">
+            <Button variant="outline" size="sm">
+              Provider Job History
             </Button>
           </Link>
           <Link href="/owner/properties">

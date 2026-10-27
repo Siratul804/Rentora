@@ -1,70 +1,22 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-
-const INITIAL_TICKETS = [
-  {
-    id: "TKT-401",
-    tenant: "Farhan Ahmed",
-    unit: "Unit 4B",
-    category: "Plumbing",
-    issue: "Master bathroom faucet leaking and low shower pressure",
-    priority: "Medium",
-    status: "Dispatched",
-    assignedTo: "Kamal Plumbing Co.",
-    requestedAt: "2026-09-28",
-    updates: [
-      {
-        message: "Technician assigned: Kamal Plumbing Co.",
-        at: "2026-09-28",
-      },
-    ],
-  },
-  {
-    id: "TKT-402",
-    tenant: "Nabila Tabassum",
-    unit: "Unit 2A",
-    category: "HVAC",
-    issue: "Living room AC making humming noise and blowing warm air",
-    priority: "High",
-    status: "Pending",
-    assignedTo: "Unassigned",
-    requestedAt: "2026-09-29",
-    updates: [],
-  },
-  {
-    id: "TKT-403",
-    tenant: "Sabbir Hossain",
-    unit: "Apt 7C",
-    category: "Electrical",
-    issue: "Kitchen power socket shorted during microwave use",
-    priority: "High",
-    status: "Resolved",
-    assignedTo: "VoltMasters BD",
-    requestedAt: "2026-09-24",
-    updates: [
-      {
-        message: "Maintenance request resolved.",
-        at: "2026-09-24",
-      },
-    ],
-  },
-];
 
 const mapMaintenanceRequest = (item) => ({
   id: item.id,
   tenant: item.tenant?.name || "Tenant not assigned",
   unit: item.unit || "N/A",
   category: item.category || "Other",
-  issue: item.description || item.title || "No description",
+  issue: item.title || item.description || "No description",
+  details: item.description || "",
   priority: item.priority || "Medium",
   status: item.status || "Pending",
   assignedTo: item.assignedTo || "Unassigned",
-  requestedAt: item.createdAt ? item.createdAt.slice(0, 10) : "",
+  requestedAt: item.createdAt ? new Date(item.createdAt).toISOString().slice(0, 10) : "",
   updates: (item.activityHistory || []).map((update) => ({
     message: update.details || update.action,
     at: update.createdAt || item.createdAt,
@@ -79,7 +31,7 @@ const PROVIDERS = [
   "FixIt Maintenance",
 ];
 
-const STATUSES = ["Pending", "Dispatched", "Resolved"];
+const STATUSES = ["Pending", "Dispatched", "In Progress", "Resolved", "Closed"];
 
 const PRIORITY_VARIANTS = {
   High: "danger",
@@ -111,30 +63,29 @@ const formatDate = (value) => {
 const BLUR = "blur(18px) saturate(160%)";
 
 const glassPanel = {
-  background: "rgba(255, 255, 255, 0.10)",
+  background: "rgba(24, 24, 27, 0.72)",
   backdropFilter: BLUR,
   WebkitBackdropFilter: BLUR,
-  border: "1px solid rgba(255, 255, 255, 0.28)",
-  boxShadow:
-    "0 12px 40px rgba(34, 45, 12, 0.14), inset 0 1px 0 rgba(255,255,255,0.35)",
+  border: "1px solid rgba(255, 255, 255, 0.10)",
+  boxShadow: "0 12px 40px rgba(0, 0, 0, 0.24)",
 };
 
 const glassField = {
-  background: "rgba(255, 255, 255, 0.78)",
+  background: "rgba(24, 24, 27, 0.92)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(111, 125, 48, 0.25)",
-  color: "#30351f",
+  border: "1px solid rgba(255, 255, 255, 0.14)",
+  color: "#f4f4f5",
 };
 
 const glassSelect =
   "w-full min-w-[9rem] rounded-xl px-3 py-2 text-sm " +
-  "transition focus:border-[#7d8b2e] focus:outline-none " +
-  "focus:ring-2 focus:ring-[#9aa63a]/40";
+  "transition focus:border-emerald-500 focus:outline-none " +
+  "focus:ring-2 focus:ring-emerald-500/40";
 
 const optionStyle = {
-  backgroundColor: "#ffffff",
-  color: "#30351f",
+  backgroundColor: "#18181b",
+  color: "#f4f4f5",
 };
 
 const glowStyle = (size, color) => ({
@@ -149,35 +100,29 @@ const glowStyle = (size, color) => ({
 });
 
 export default function MaintenancePage() {
-  const [tickets, setTickets] = useState(INITIAL_TICKETS);
+  const [tickets, setTickets] = useState([]);
   const [activeTicketId, setActiveTicketId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // Load real data if the API exists; otherwise keep the demo tickets.
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadTickets() {
-      try {
-        const res = await fetch("/api/maintenance-requests");
-        if (!res.ok) return;
-
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : data.requests;
-
-        if (!cancelled && Array.isArray(list) && list.length > 0) {
-          setTickets(list.map(mapMaintenanceRequest));
-        }
-      } catch {
-        // Keep INITIAL_TICKETS when the request fails.
-      }
+  const loadTickets = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/owner/maintenance", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to load maintenance requests.");
+      setTickets((data.requests || []).map(mapMaintenanceRequest));
+    } catch (loadError) {
+      setError(loadError.message || "Failed to load maintenance requests.");
+    } finally {
+      setLoading(false);
     }
-
-    loadTickets();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
 
   // Close modal with Escape.
   useEffect(() => {
@@ -190,20 +135,20 @@ export default function MaintenancePage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [activeTicketId]);
 
-  const today = new Date().toISOString().slice(0, 10);
-
-  const updateTicket = (id, patch, message) => {
-    setTickets((current) =>
-      current.map((ticket) =>
-        ticket.id === id
-          ? {
-              ...ticket,
-              ...patch,
-              updates: [...ticket.updates, { message, at: today }],
-            }
-          : ticket
-      )
-    );
+  const updateTicket = async (id, patch) => {
+    setError("");
+    try {
+      const response = await fetch("/api/owner/maintenance", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...patch }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to update maintenance request.");
+      await loadTickets();
+    } catch (updateError) {
+      setError(updateError.message || "Failed to update maintenance request.");
+    }
   };
 
   const handleAssign = (ticket, provider) => {
@@ -214,19 +159,13 @@ export default function MaintenancePage() {
         ? "Dispatched"
         : ticket.status;
 
-    updateTicket(
-      ticket.id,
-      { assignedTo: provider, status: nextStatus },
-      provider === "Unassigned"
-        ? "Technician removed."
-        : `Technician assigned: ${provider}`
-    );
+    updateTicket(ticket.id, { assignedTo: provider, status: nextStatus });
   };
 
   const handleStatus = (ticket, status) => {
     if (status === ticket.status) return;
 
-    updateTicket(ticket.id, { status }, `Status changed to ${status}.`);
+    updateTicket(ticket.id, { status });
   };
 
   const activeTicket = tickets.find((t) => t.id === activeTicketId) || null;
@@ -241,17 +180,13 @@ export default function MaintenancePage() {
   return (
     <DashboardShell>
       <div
-        className="relative isolate min-h-full overflow-hidden px-3 py-5 sm:px-6 sm:py-7 lg:px-8"
-        style={{
-          background:
-            "linear-gradient(135deg, #f8faf2 0%, #edf1df 48%, #f6f7f0 100%)",
-        }}
+        className="relative isolate min-h-full overflow-hidden bg-zinc-950 px-3 py-5 text-zinc-100 sm:px-6 sm:py-7 lg:px-8"
       >
-        {/* Decorative olive-green glow */}
+        {/* Decorative accent glows */}
         <div
           aria-hidden="true"
           style={{
-            ...glowStyle("28rem", "rgba(125,139,46,0.24)"),
+            ...glowStyle("28rem", "rgba(16,185,129,0.10)"),
             top: "-7rem",
             right: "-7rem",
           }}
@@ -260,22 +195,22 @@ export default function MaintenancePage() {
         <div
           aria-hidden="true"
           style={{
-            ...glowStyle("24rem", "rgba(85,107,47,0.20)"),
+            ...glowStyle("24rem", "rgba(20,184,166,0.08)"),
             bottom: "-8rem",
             left: "-6rem",
           }}
         />
 
         <div className="relative z-10 mb-6 sm:mb-8">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#77832e]">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
             Owner Portal
           </p>
 
-          <h1 className="text-2xl font-bold tracking-tight text-[#252b19] sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
             Maintenance requests
           </h1>
 
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#62684f] sm:text-base">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-base">
             {counts.total} requests: {counts.pending} pending,{" "}
             {counts.dispatched} dispatched, {counts.resolved} resolved.
           </p>
@@ -287,26 +222,26 @@ export default function MaintenancePage() {
             {
               label: "Total Requests",
               value: counts.total,
-              color: "#343b22",
-              glow: "rgba(125,139,46,0.15)",
+              color: "#f4f4f5",
+              glow: "rgba(16,185,129,0.10)",
             },
             {
               label: "Pending Requests",
               value: counts.pending,
-              color: "#a65d09",
-              glow: "rgba(245,158,11,0.12)",
+              color: "#fbbf24",
+              glow: "rgba(245,158,11,0.08)",
             },
             {
               label: "Dispatched",
               value: counts.dispatched,
-              color: "#416b9b",
-              glow: "rgba(59,130,246,0.10)",
+              color: "#60a5fa",
+              glow: "rgba(59,130,246,0.08)",
             },
             {
               label: "Resolved Requests",
               value: counts.resolved,
-              color: "#16815a",
-              glow: "rgba(16,185,129,0.12)",
+              color: "#34d399",
+              glow: "rgba(16,185,129,0.08)",
             },
           ].map((item) => (
             <div
@@ -314,13 +249,12 @@ export default function MaintenancePage() {
               className="relative overflow-hidden rounded-2xl p-5 transition duration-200 hover:-translate-y-1 sm:p-6"
               style={{
                 ...glassPanel,
-                background: `linear-gradient(135deg, rgba(255,255,255,0.82), ${item.glow})`,
-                border: "1px solid rgba(255,255,255,0.85)",
-                boxShadow:
-                  "0 8px 30px rgba(54,65,27,0.09), inset 0 1px 0 rgba(255,255,255,0.9)",
+                background: `linear-gradient(135deg, rgba(24,24,27,0.92), ${item.glow})`,
+                border: "1px solid rgba(255,255,255,0.10)",
+                boxShadow: "0 8px 30px rgba(0,0,0,0.24)",
               }}
             >
-              <p className="text-sm font-medium text-[#737766]">
+              <p className="text-sm font-medium text-zinc-400">
                 {item.label}
               </p>
 
@@ -348,27 +282,31 @@ export default function MaintenancePage() {
           className="relative z-10 overflow-hidden rounded-2xl"
           style={{
             ...glassPanel,
-            background: "rgba(255,255,255,0.63)",
-            border: "1px solid rgba(255,255,255,0.90)",
-            boxShadow:
-              "0 12px 40px rgba(54,65,27,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
+            background: "rgba(24,24,27,0.78)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 12px 40px rgba(0,0,0,0.24)",
           }}
         >
-          <div className="border-b border-[#77832e]/15 px-4 py-4 sm:px-6 sm:py-5">
-            <h2 className="text-lg font-semibold text-[#2c321f] sm:text-xl">
-              All tickets
-            </h2>
+          <div className="flex items-center justify-between gap-4 border-b border-zinc-700/70 px-4 py-4 sm:px-6 sm:py-5">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-100 sm:text-xl">
+                All tickets
+              </h2>
 
-            <p className="mt-1 text-sm text-[#737766]">
-              Assign technicians and manage request status.
-            </p>
+              <p className="mt-1 text-sm text-zinc-400">
+                Assign technicians and manage request status.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={loadTickets} disabled={loading}>
+              {loading ? "Loading…" : "Refresh"}
+            </Button>
           </div>
 
           {/* Responsive table wrapper */}
           <div className="overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
               <thead>
-                <tr className="bg-[#7d8b2e]/[0.07] text-xs uppercase tracking-wide text-[#737766]">
+                <tr className="bg-zinc-800/70 text-xs uppercase tracking-wide text-zinc-400">
                   {[
                     "Ticket",
                     "Tenant",
@@ -382,7 +320,7 @@ export default function MaintenancePage() {
                     <th
                       key={i}
                       scope="col"
-                      className="border-b border-[#77832e]/15 px-4 py-4 font-semibold"
+                      className="border-b border-zinc-700/70 px-4 py-4 font-semibold"
                     >
                       {heading}
                     </th>
@@ -391,12 +329,18 @@ export default function MaintenancePage() {
               </thead>
 
               <tbody>
-                {tickets.map((ticket) => (
+                {loading ? (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400">Loading maintenance requests…</td></tr>
+                ) : error ? (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-rose-400">{error}</td></tr>
+                ) : tickets.length === 0 ? (
+                  <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400">No maintenance requests yet.</td></tr>
+                ) : tickets.map((ticket) => (
                   <tr
                     key={ticket.id}
-                    className="align-top transition-colors hover:bg-[#7d8b2e]/[0.06]"
+                    className="align-top transition-colors hover:bg-white/5"
                   >
-                    <td className="border-b border-[#77832e]/10 px-4 py-4 font-semibold text-[#343b22]">
+                    <td className="border-b border-zinc-800 px-4 py-4 font-semibold text-zinc-200">
                       <span className="whitespace-nowrap font-mono text-xs">
                         {ticket.id}
                       </span>
@@ -410,23 +354,24 @@ export default function MaintenancePage() {
                       </div>
                     </td>
 
-                    <td className="border-b border-[#77832e]/10 px-4 py-4 text-[#363b2c]">
+                    <td className="border-b border-zinc-800 px-4 py-4 text-zinc-300">
                       <div className="min-w-[110px] font-semibold">
                         {ticket.tenant}
                       </div>
 
-                      <div className="mt-1 text-xs text-[#737766]">
+                      <div className="mt-1 text-xs text-zinc-500">
                         {ticket.unit}
                       </div>
                     </td>
 
-                    <td className="max-w-[18rem] border-b border-[#77832e]/10 px-4 py-4 text-[#555b49]">
+                    <td className="max-w-[18rem] border-b border-zinc-800 px-4 py-4 text-zinc-400">
                       <p className="min-w-[150px] leading-6">
                         {ticket.issue}
                       </p>
+                      {ticket.details && <p className="mt-1 min-w-[150px] text-xs leading-5 text-zinc-500">{ticket.details}</p>}
                     </td>
 
-                    <td className="border-b border-[#77832e]/10 px-4 py-4">
+                    <td className="border-b border-zinc-800 px-4 py-4">
                       <Badge
                         variant={PRIORITY_VARIANTS[ticket.priority] || "info"}
                       >
@@ -434,11 +379,11 @@ export default function MaintenancePage() {
                       </Badge>
                     </td>
 
-                    <td className="whitespace-nowrap border-b border-[#77832e]/10 px-4 py-4 text-xs text-[#737766]">
+                    <td className="whitespace-nowrap border-b border-zinc-800 px-4 py-4 text-xs text-zinc-500">
                       {formatDate(ticket.requestedAt)}
                     </td>
 
-                    <td className="border-b border-[#77832e]/10 px-4 py-4">
+                    <td className="border-b border-zinc-800 px-4 py-4">
                       <select
                         aria-label={`Technician for ${ticket.id}`}
                         className={glassSelect}
@@ -446,6 +391,11 @@ export default function MaintenancePage() {
                         value={ticket.assignedTo}
                         onChange={(e) => handleAssign(ticket, e.target.value)}
                       >
+                        {!PROVIDERS.includes(ticket.assignedTo) && (
+                          <option value={ticket.assignedTo} style={optionStyle}>
+                            {ticket.assignedTo}
+                          </option>
+                        )}
                         {PROVIDERS.map((provider) => (
                           <option
                             key={provider}
@@ -458,7 +408,7 @@ export default function MaintenancePage() {
                       </select>
                     </td>
 
-                    <td className="border-b border-[#77832e]/10 px-4 py-4">
+                    <td className="border-b border-zinc-800 px-4 py-4">
                       <div className="mb-3">
                         <Badge
                           variant={STATUS_VARIANTS[ticket.status] || "info"}
@@ -486,7 +436,7 @@ export default function MaintenancePage() {
                       </select>
                     </td>
 
-                    <td className="border-b border-[#77832e]/10 px-4 py-4">
+                    <td className="border-b border-zinc-800 px-4 py-4">
                       <Button
                         variant="outline"
                         size="sm"
@@ -502,7 +452,7 @@ export default function MaintenancePage() {
           </div>
 
           {/* Mobile scroll hint */}
-          <div className="border-t border-[#77832e]/10 px-4 py-3 text-xs text-[#737766] sm:hidden">
+          <div className="border-t border-zinc-800 px-4 py-3 text-xs text-zinc-500 sm:hidden">
             Swipe left or right to view all ticket details.
           </div>
         </section>
@@ -517,7 +467,7 @@ export default function MaintenancePage() {
               position: "fixed",
               inset: 0,
               zIndex: 9999,
-              background: "rgba(24,30,13,0.48)",
+              background: "rgba(9,9,11,0.72)",
               backdropFilter: "blur(10px)",
               WebkitBackdropFilter: "blur(10px)",
             }}
@@ -531,19 +481,18 @@ export default function MaintenancePage() {
               className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl p-5 sm:p-6"
               style={{
                 background:
-                  "linear-gradient(145deg, rgba(255,255,255,0.93), rgba(239,243,224,0.88))",
+                  "linear-gradient(145deg, rgba(39,39,42,0.98), rgba(24,24,27,0.98))",
                 backdropFilter: "blur(24px) saturate(160%)",
                 WebkitBackdropFilter: "blur(24px) saturate(160%)",
-                border: "1px solid rgba(255,255,255,0.85)",
-                boxShadow:
-                  "0 25px 80px rgba(20,30,8,0.25), inset 0 1px 0 rgba(255,255,255,0.9)",
-                color: "#30351f",
+                border: "1px solid rgba(255,255,255,0.12)",
+                boxShadow: "0 25px 80px rgba(0,0,0,0.55)",
+                color: "#f4f4f5",
               }}
             >
               <div
                 aria-hidden="true"
                 style={{
-                  ...glowStyle("14rem", "rgba(125,139,46,0.20)"),
+                  ...glowStyle("14rem", "rgba(16,185,129,0.12)"),
                   top: "-4rem",
                   right: "-4rem",
                   zIndex: 0,
@@ -553,18 +502,18 @@ export default function MaintenancePage() {
               <div className="relative">
                 <div className="mb-5 flex items-start justify-between gap-4">
                   <div>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[#77832e]">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-emerald-400">
                       Activity history
                     </p>
 
                     <h2
                       id="activity-title"
-                      className="break-words text-lg font-bold text-[#30351f] sm:text-xl"
+                      className="break-words text-lg font-bold text-zinc-100 sm:text-xl"
                     >
                       {activeTicket.id} activity
                     </h2>
 
-                    <p className="mt-1 text-sm text-[#737766]">
+                    <p className="mt-1 text-sm text-zinc-400">
                       {activeTicket.tenant}, {activeTicket.unit}
                     </p>
                   </div>
@@ -579,14 +528,14 @@ export default function MaintenancePage() {
                 </div>
 
                 <div
-                  className="mb-4 rounded-xl border border-[#77832e]/15 p-4"
-                  style={{ background: "rgba(255,255,255,0.52)" }}
+                  className="mb-4 rounded-xl border border-zinc-700 p-4"
+                  style={{ background: "rgba(9,9,11,0.55)" }}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#737766]">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                     Issue description
                   </p>
 
-                  <p className="mt-2 text-sm leading-6 text-[#363b2c]">
+                  <p className="mt-2 text-sm leading-6 text-zinc-200">
                     {activeTicket.issue}
                   </p>
 
@@ -610,7 +559,7 @@ export default function MaintenancePage() {
                 </div>
 
                 {activeTicket.updates.length === 0 ? (
-                  <p className="rounded-xl border border-[#77832e]/15 bg-white/45 p-4 text-sm leading-6 text-[#737766]">
+                  <p className="rounded-xl border border-zinc-700 bg-zinc-900/70 p-4 text-sm leading-6 text-zinc-400">
                     No activity yet. Assign a technician to start this request.
                   </p>
                 ) : (
@@ -620,17 +569,15 @@ export default function MaintenancePage() {
                         key={`${update.at}-${index}`}
                         className="rounded-xl p-4"
                         style={{
-                          background: "rgba(255,255,255,0.58)",
-                          border: "1px solid rgba(125,139,46,0.16)",
-                          boxShadow:
-                            "inset 0 1px 0 rgba(255,255,255,0.8)",
+                          background: "rgba(9,9,11,0.55)",
+                          border: "1px solid rgba(255,255,255,0.10)",
                         }}
                       >
-                        <div className="break-words text-sm leading-6 text-[#363b2c]">
+                        <div className="break-words text-sm leading-6 text-zinc-200">
                           {update.message}
                         </div>
 
-                        <div className="mt-2 text-xs text-[#737766]">
+                        <div className="mt-2 text-xs text-zinc-500">
                           {formatDate(update.at)}
                         </div>
                       </li>
