@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node test/property_lease_test.js"
+    "test": "node test/property_lease_test.js",
+    "test:security": "node test/security_audit_test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
