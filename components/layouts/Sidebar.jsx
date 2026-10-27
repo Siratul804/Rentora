@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -23,15 +22,13 @@ export const PORTAL_NAV_ITEMS = {
     { label: "My Bills", href: "/owner/bills", icon: "💳" },
     { label: "Payments", href: "/owner/payments", icon: "💰" },
     { label: "Maintenance", href: "/owner/maintenance", icon: "🔧" },
-    { label: "Reports", href: "/owner/reports", icon: "📈" },
   ],
   tenant: [
     { label: "Dashboard", href: "/tenant/dashboard", icon: "🏠" },
     { label: "Payments", href: "/tenant/payments", icon: "💳" },
     { label: "Maintenance", href: "/tenant/maintenance", icon: "🛠️" },
     { label: "My Lease", href: "/tenant/lease", icon: "📄" },
-    { label: "Notifications", href: "/tenant/notifications", icon: "🔔" },
-    { label: "Profile", href: "/tenant/profile", icon: "👤" },
+    { label: "Notifications", href: "/tenant/notifications", icon: "🔔" }
   ],
 };
 
