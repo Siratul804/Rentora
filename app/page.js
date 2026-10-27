@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -9,9 +10,18 @@ export default function Home() {
       {/* Top Navbar */}
       <header className="h-20 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50 px-6 sm:px-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {/*
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-emerald-500/20">
             R
           </div>
+          */}
+          <Image
+              src="/rentora_logo.png"
+              alt="Rentora Logo"
+              width={38}
+              height={40}
+              className="rounded-2xl"
+          />
           <span className="text-xl font-bold tracking-tight text-white">
             Rentora
           </span>
