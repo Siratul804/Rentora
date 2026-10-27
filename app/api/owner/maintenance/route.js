@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import MaintenanceRequest from "@/lib/models/MaintenanceRequest";
+import User from "@/lib/models/User";
 import { getServerSession } from "@/lib/session";
 import { ROLES } from "@/lib/auth";
 
@@ -19,22 +20,18 @@ export async function GET() {
 
     await dbConnect();
 
-    const query = {};
-
-    // Only return requests belonging to the logged-in owner.
-    if (session.id && session.id !== "owner-1") {
-      if (!mongoose.isValidObjectId(session.id)) {
-        return NextResponse.json(
-          { error: "Invalid owner session." },
-          { status: 403 }
-        );
-      }
-
-      query.ownerId = session.id;
+    const owner = mongoose.isValidObjectId(session.id)
+      ? await User.findOne({ _id: session.id, role: ROLES.OWNER }).select("_id")
+      : null;
+    if (!owner) {
+      return NextResponse.json({ error: "Owner account not found." }, { status: 403 });
     }
+
+    const query = { ownerId: owner._id };
 
     const requests = await MaintenanceRequest.find(query)
       .populate("tenantId", "name")
+      .populate("propertyId", "name")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -48,6 +45,7 @@ export async function GET() {
         priority: item.priority || "Medium",
         status: item.status || "Pending",
         assignedTo: item.assignedTo || "Unassigned",
+        property: item.propertyId?.name || "",
         unit: item.unit || "N/A",
         tenant: item.tenantId
           ? { name: item.tenantId.name || "Tenant" }
@@ -117,18 +115,11 @@ export async function PATCH(request) {
 
     await dbConnect();
 
-    const query = { _id: id };
-
-    if (session.id && session.id !== "owner-1") {
-      if (!mongoose.isValidObjectId(session.id)) {
-        return NextResponse.json(
-          { error: "Invalid owner session." },
-          { status: 403 }
-        );
-      }
-
-      query.ownerId = session.id;
+    if (!mongoose.isValidObjectId(session.id)) {
+      return NextResponse.json({ error: "Invalid owner session." }, { status: 403 });
     }
+
+    const query = { _id: id, ownerId: session.id };
 
     const maintenanceRequest = await MaintenanceRequest.findOne(query);
 
@@ -165,6 +156,8 @@ export async function PATCH(request) {
       maintenanceRequest.status !== status
     ) {
       maintenanceRequest.status = status;
+      maintenanceRequest.completedAt =
+        status === "Resolved" || status === "Closed" ? new Date() : null;
 
       changes.push({
         action: "Status updated",
