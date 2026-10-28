@@ -20,6 +20,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "26.6.3",
     "@types/react": "19.3.0",
+    "selenium-webdriver": "^4.51.0",
     "tailwindcss": "^4",
     "typescript": "7.0.2"
   },
