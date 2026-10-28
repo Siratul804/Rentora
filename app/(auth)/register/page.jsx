@@ -133,7 +133,7 @@ export default function RegisterPage() {
               size="lg"
               disabled={loading}
             >
-              {loading ? "Connecting to SSLCommerz..." : "Pay ৳499 & Register as Owner"}
+              {loading ? "Preparing checkout..." : "Pay ৳499 & Register as Owner"}
             </Button>
           </form>
 

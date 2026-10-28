@@ -18,28 +18,54 @@ export default function AdminOwnersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [updatingOwnerId, setUpdatingOwnerId] = useState("");
 
   // Get owners from Admin API
   useEffect(() => {
-  fetch("/api/admin/owner")
-    .then((res) => res.json())
-    .then((data) => {
-      console.log("OWNER API DATA:", data);
-
-      if (data.success) {
+    fetch("/api/admin/owner")
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "Failed to load owners.");
+        }
         setOwners(data.owners);
-      } else {
-        setError(data.message || "Failed to load owners");
+      })
+      .catch((loadError) => {
+        console.error("OWNER API ERROR:", loadError);
+        setError(loadError.message || "Failed to load owners.");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const updateOwnerStatus = async (owner, action) => {
+    setError("");
+    setMessage("");
+    setUpdatingOwnerId(owner.id);
+
+    try {
+      const response = await fetch("/api/admin/owner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: owner.id, action }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Failed to update owner status.");
       }
-    })
-    .catch((err) => {
-      console.error("OWNER API ERROR:", err);
-      setError("Failed to load owners");
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-}, []);
+
+      setOwners((currentOwners) =>
+        currentOwners.map((item) => item.id === owner.id ? data.owner : item)
+      );
+      setMessage(data.message);
+    } catch (updateError) {
+      setError(updateError.message || "Failed to update owner status.");
+    } finally {
+      setUpdatingOwnerId("");
+    }
+  };
 
   // Search owners
   const filteredOwners = owners.filter((owner) => {
@@ -103,9 +129,9 @@ export default function AdminOwnersPage() {
       accessor: (row) => (
         <Badge
           variant={
-            row.status === "Active"
+            row.status === "Approved"
               ? "success"
-              : row.status === "Suspended"
+              : row.status === "Rejected"
                 ? "danger"
                 : "warning"
           }
@@ -125,9 +151,18 @@ export default function AdminOwnersPage() {
 
           <Button
             size="sm"
-            variant={row.status === "Active" ? "ghost" : "primary"}
+            disabled={updatingOwnerId === row.id}
+            onClick={() => updateOwnerStatus(row, "approve")}
           >
-            {row.status === "Active" ? "Manage" : "Approve"}
+            Approve
+          </Button>
+          <Button
+            size="sm"
+            variant="danger"
+            disabled={updatingOwnerId === row.id}
+            onClick={() => updateOwnerStatus(row, "reject")}
+          >
+            Reject
           </Button>
         </div>
       ),
@@ -163,13 +198,19 @@ export default function AdminOwnersPage() {
         </CardHeader>
 
         <CardContent className="p-0">
+          {message && (
+            <div role="status" className="p-4 text-emerald-700 dark:text-emerald-400">
+              {message}
+            </div>
+          )}
+          {error && !loading && (
+            <div role="alert" className="p-4 text-red-500">
+              {error}
+            </div>
+          )}
           {loading ? (
             <div className="p-6 text-center text-zinc-500">
               Loading owners...
-            </div>
-          ) : error ? (
-            <div className="p-6 text-center text-red-500">
-              {error}
             </div>
           ) : filteredOwners.length === 0 ? (
             <div className="p-6 text-center text-zinc-500">

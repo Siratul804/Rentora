@@ -153,7 +153,7 @@ export function LoginForm() {
             disabled={paymentLoading}
             className="w-full text-xs py-2.5 font-semibold bg-emerald-600 hover:bg-emerald-500 text-white"
           >
-            {paymentLoading ? "Connecting to SSLCommerz..." : "Pay ৳499 via SSLCommerz & Activate"}
+            {paymentLoading ? "Preparing checkout..." : "Continue to ৳499 checkout"}
           </Button>
         </div>
       )}

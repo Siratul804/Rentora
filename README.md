@@ -119,7 +119,7 @@ rentora/
    ```bash
    cp .env.example .env.local
    ```
-   Fill in your MongoDB connection string and SSLCommerz credentials.
+   Fill in your MongoDB connection string. Local development uses a clearly labeled simulated owner-activation checkout by default, so SSLCommerz credentials are not required. Set `PAYMENT_MODE=sslcommerz` to use the SSLCommerz sandbox locally; production always uses SSLCommerz and requires valid store credentials.
 
 3. **Run the local development server:**
    ```bash
