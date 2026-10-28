@@ -101,10 +101,12 @@ export async function POST(request) {
     response.cookies.set(AUTH_COOKIE_NAME, token, getCookieOptions());
     return response;
   } catch (error) {
-    console.error("Login error:", error);
-    return NextResponse.json(
-      { error: "An unexpected error occurred during login" },
-      { status: 500 }
+  console.error("LOGIN API ERROR:", error);
+
+  return NextResponse.json(
+    { error: "An unexpected error occurred during login" },
+    { status: 500 }
+
     );
   }
 }
