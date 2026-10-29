@@ -1,5 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
+import { SkyBackground } from "@/components/theme/SkyBackground";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,10 +25,19 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      data-theme="dark"
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 dark:bg-black text-zinc-900 dark:text-zinc-100 font-sans selection:bg-emerald-500/20 selection:text-emerald-600">
-        {children}
+      <body className="min-h-full flex flex-col font-sans selection:bg-emerald-500/20">
+        <Script id="rentora-theme-bootstrap" strategy="beforeInteractive">
+          {`(function(){try{var theme=localStorage.getItem("rentora-theme");if(theme!=="light"&&theme!=="dark")theme="dark";var root=document.documentElement;root.dataset.theme=theme;root.classList.toggle("dark",theme==="dark");}catch(_){document.documentElement.classList.add("dark");}})();`}
+        </Script>
+        <ThemeProvider>
+          <SkyBackground />
+          <div className="app-content">{children}</div>
+          <ThemeToggle />
+        </ThemeProvider>
       </body>
     </html>
   );

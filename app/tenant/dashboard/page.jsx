@@ -25,6 +25,9 @@ export default function TenantDashboardPage() {
   const [rent, setRent] = useState(null);
   const [rentLoading, setRentLoading] = useState(true);
   const [rentError, setRentError] = useState("");
+  const [maintenance, setMaintenance] = useState([]);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(true);
+  const [maintenanceError, setMaintenanceError] = useState("");
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const [invoiceDownloadError, setInvoiceDownloadError] = useState("");
   const [invoiceDownloadMessage, setInvoiceDownloadMessage] = useState("");
@@ -60,6 +63,32 @@ export default function TenantDashboardPage() {
   useEffect(() => {
     void loadRentSummary();
   }, [loadRentSummary]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/tenant/maintenance")
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to load maintenance requests.");
+        if (!Array.isArray(data.requests)) throw new Error("The server returned invalid maintenance data.");
+        return data.requests;
+      })
+      .then((requests) => {
+        if (active) {
+          setMaintenance(requests);
+          setMaintenanceError("");
+        }
+      })
+      .catch((error) => {
+        if (active) setMaintenanceError(error.message || "Failed to load maintenance requests.");
+      })
+      .finally(() => {
+        if (active) setMaintenanceLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function downloadCurrentInvoice() {
     if (!rent?.invoiceId) return;
@@ -223,12 +252,22 @@ export default function TenantDashboardPage() {
               </span>
               <span className="text-xl">🛠️</span>
             </div>
-            <div className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">
-              1 Active
-            </div>
-            <div className="text-xs text-zinc-500">
-              Bathroom faucet repair: <strong className="text-emerald-600">Dispatched</strong>
-            </div>
+            {maintenanceLoading ? (
+              <p role="status" className="text-sm text-zinc-500">Loading requests...</p>
+            ) : maintenanceError ? (
+              <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">{maintenanceError}</p>
+            ) : (
+              <>
+                <div className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">
+                  {maintenance.filter((request) => !["Resolved", "Closed"].includes(request.status)).length} Active
+                </div>
+                <div className="text-xs text-zinc-500">
+                  {maintenance[0] ? (
+                    <>{maintenance[0].title}: <strong className="text-emerald-600">{maintenance[0].status}</strong></>
+                  ) : "No maintenance requests yet."}
+                </div>
+              </>
+            )}
             <div className="pt-2">
               <Link href="/tenant/maintenance">
                 <Button size="sm" variant="outline" className="w-full">

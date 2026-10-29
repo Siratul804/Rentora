@@ -1,76 +1,95 @@
 "use client";
 
-import React, { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/tables/DataTable";
 
-const PROVIDERS_DATA = [
-  { id: "SP-101", name: "Kamal Plumbing Co.", service: "Plumbing", city: "Dhaka (Dhanmondi / Mirpur)", rating: "4.9 ★", jobsDone: 142, status: "Active", contact: "+880 1711-889900" },
-  { id: "SP-102", name: "VoltMasters Electrical", service: "Electrical", city: "Dhaka (Gulshan / Banani)", rating: "4.8 ★", jobsDone: 98, status: "Active", contact: "+880 1812-776655" },
-  { id: "SP-103", name: "CoolBreeze HVAC Tech", service: "HVAC & AC", city: "Dhaka (Uttara / Bashundhara)", rating: "4.7 ★", jobsDone: 76, status: "Active", contact: "+880 1913-665544" },
-  { id: "SP-104", name: "LockSmith 24/7 BD", service: "Carpentry & Locks", city: "Dhaka & Chittagong", rating: "4.6 ★", jobsDone: 34, status: "Active", contact: "+880 1614-554433" },
-  { id: "SP-105", name: "Rapid Pipe Repair", service: "Plumbing", city: "Sylhet", rating: "4.2 ★", jobsDone: 12, status: "Under Review", contact: "+880 1515-443322" },
-];
-
 export default function AdminServiceProvidersPage() {
+  const [jobs, setJobs] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
+  useEffect(() => {
+    let active = true;
+    fetch("/api/provider-job-history")
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to load provider work records.");
+        if (!Array.isArray(data.jobs)) throw new Error("The server returned invalid provider job data.");
+        return data.jobs;
+      })
+      .then((data) => {
+        if (active) setJobs(data);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || "Failed to load provider work records.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const providers = useMemo(() => {
+    const records = new Map();
+    jobs.forEach((job) => {
+      const current = records.get(job.provider) || {
+        name: job.provider,
+        jobs: [],
+        categories: new Set(),
+        properties: new Set(),
+        ratingTotal: 0,
+        ratedJobs: 0,
+      };
+      current.jobs.push(job);
+      current.categories.add(job.category || "Other");
+      if (job.property) current.properties.add(job.property);
+      if (Number.isFinite(job.rating)) {
+        current.ratingTotal += job.rating;
+        current.ratedJobs += 1;
+      }
+      records.set(job.provider, current);
+    });
+    return [...records.values()].map((record) => ({
+      ...record,
+      service: [...record.categories].join(", "),
+      city: [...record.properties].join(", ") || "No property recorded",
+      jobsDone: record.jobs.length,
+      rating: record.ratedJobs ? `${(record.ratingTotal / record.ratedJobs).toFixed(1)} ★` : "Not rated",
+    }));
+  }, [jobs]);
+
+  const filters = useMemo(() => [
+    "All",
+    ...new Set(jobs.map((job) => job.category || "Other").filter(Boolean)),
+  ], [jobs]);
   const filtered = selectedFilter === "All"
-    ? PROVIDERS_DATA
-    : PROVIDERS_DATA.filter(p => p.service === selectedFilter);
+    ? providers
+    : providers.filter((provider) => provider.categories.has(selectedFilter));
 
   const columns = [
     {
       header: "Provider Name",
-      accessor: (row) => (
-        <div>
-          <div className="font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</div>
-          <div className="text-xs text-zinc-400">ID: {row.id}</div>
-        </div>
-      ),
+      accessor: (row) => <div className="font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</div>,
     },
     {
       header: "Trade Specialty",
-      accessor: (row) => (
-        <Badge variant="purple" size="sm">
-          {row.service}
-        </Badge>
-      ),
+      accessor: (row) => <Badge variant="purple" size="sm">{row.service}</Badge>,
     },
+    { header: "Properties Served", accessor: "city" },
     {
-      header: "Coverage Zone",
-      accessor: "city",
+      header: "Rating / Completed Jobs",
+      accessor: (row) => <span className="text-xs font-semibold text-amber-500">{row.rating} · {row.jobsDone} jobs</span>,
     },
+    { header: "Contact", accessor: () => "Not recorded" },
     {
-      header: "Rating",
-      accessor: (row) => (
-        <span className="text-xs font-semibold text-amber-500">
-          {row.rating} ({row.jobsDone} jobs)
-        </span>
-      ),
-    },
-    {
-      header: "Contact",
-      accessor: "contact",
-    },
-    {
-      header: "Status",
-      accessor: (row) => (
-        <Badge variant={row.status === "Active" ? "success" : "warning"} size="sm">
-          {row.status}
-        </Badge>
-      ),
-    },
-    {
-      header: "Actions",
-      accessor: () => (
-        <Button size="sm" variant="outline">
-          View Profile
-        </Button>
-      ),
+      header: "Record",
+      accessor: () => <Badge variant="success" size="sm">Completed work</Badge>,
     },
   ];
 
@@ -78,36 +97,40 @@ export default function AdminServiceProvidersPage() {
     <DashboardShell
       portal="admin"
       title="Service Providers & Dispatch Fleet"
-      subtitle="Oversee certified technicians, plumbers, and electricians available for dispatch"
-      actions={
-        <Button variant="primary" size="md">
-          + Onboard New Provider
-        </Button>
-      }
+      subtitle="Providers and ratings are derived from completed maintenance work recorded in the platform"
     >
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <CardTitle>Registered Technicians ({filtered.length})</CardTitle>
-            <div className="flex items-center gap-2">
-              {["All", "Plumbing", "Electrical", "HVAC & AC"].map((cat) => (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle>Providers with Completed Work ({filtered.length})</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              {filters.map((category) => (
                 <button
-                  key={cat}
-                  onClick={() => setSelectedFilter(cat)}
+                  key={category}
+                  type="button"
+                  onClick={() => setSelectedFilter(category)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    selectedFilter === cat
+                    selectedFilter === category
                       ? "bg-purple-600 text-white"
                       : "border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   }`}
                 >
-                  {cat}
+                  {category}
                 </button>
               ))}
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <DataTable columns={columns} data={filtered} />
+          {error ? (
+            <p role="alert" className="p-5 text-sm text-rose-700 dark:text-rose-300">{error}</p>
+          ) : loading ? (
+            <p role="status" className="p-8 text-center text-sm text-zinc-500">Loading completed provider work...</p>
+          ) : filtered.length ? (
+            <DataTable columns={columns} data={filtered} />
+          ) : (
+            <p className="p-8 text-center text-sm text-zinc-500">No completed provider work found for this category.</p>
+          )}
         </CardContent>
       </Card>
     </DashboardShell>

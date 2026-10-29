@@ -23,14 +23,6 @@ const mapMaintenanceRequest = (item) => ({
   })),
 });
 
-const PROVIDERS = [
-  "Unassigned",
-  "Kamal Plumbing Co.",
-  "VoltMasters BD",
-  "CoolAir Services",
-  "FixIt Maintenance",
-];
-
 const STATUSES = ["Pending", "Dispatched", "In Progress", "Resolved", "Closed"];
 
 const PRIORITY_VARIANTS = {
@@ -104,6 +96,10 @@ export default function MaintenancePage() {
   const [activeTicketId, setActiveTicketId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const providerOptions = [
+    "Unassigned",
+    ...new Set(tickets.map((ticket) => ticket.assignedTo).filter((provider) => provider && provider !== "Unassigned")),
+  ];
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -391,12 +387,7 @@ export default function MaintenancePage() {
                         value={ticket.assignedTo}
                         onChange={(e) => handleAssign(ticket, e.target.value)}
                       >
-                        {!PROVIDERS.includes(ticket.assignedTo) && (
-                          <option value={ticket.assignedTo} style={optionStyle}>
-                            {ticket.assignedTo}
-                          </option>
-                        )}
-                        {PROVIDERS.map((provider) => (
+                        {providerOptions.map((provider) => (
                           <option
                             key={provider}
                             value={provider}
