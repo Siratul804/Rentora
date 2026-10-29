@@ -79,6 +79,7 @@ export async function GET(request) {
     const allJobs = requests.map((item) => ({
       id: item._id.toString(),
       issue: item.title,
+      category: item.category || "Other",
       completionDate: getCompletionDate(item),
       provider: item.assignedTo,
       propertyId: item.propertyId?._id?.toString() || "",

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
+import { Bell, Building2, Crown, UserRound } from "lucide-react";
 
 export function Navbar({ portal = "owner", pageTitle = "" }) {
   const { user, logout } = useAuth();
@@ -49,9 +50,9 @@ export function Navbar({ portal = "owner", pageTitle = "" }) {
 
   const getRoleBadge = () => {
     const role = (user?.role || portal).toLowerCase();
-    if (role === "admin") return "👑 Admin";
-    if (role === "owner") return "🏢 Owner";
-    if (role === "tenant") return "👤 Tenant";
+    if (role === "admin") return "Admin";
+    if (role === "owner") return "Owner";
+    if (role === "tenant") return "Tenant";
     return portal.toUpperCase();
   };
 
@@ -70,7 +71,7 @@ export function Navbar({ portal = "owner", pageTitle = "" }) {
             aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
             className="w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors relative"
           >
-            <span aria-hidden="true">🔔</span>
+            <Bell aria-hidden="true" size={18} strokeWidth={1.8} />
             {unreadCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 rounded-full bg-rose-600 px-1 text-[10px] font-bold text-white flex items-center justify-center">
                 {unreadCount > 99 ? "99+" : unreadCount}
@@ -82,7 +83,15 @@ export function Navbar({ portal = "owner", pageTitle = "" }) {
         {/* User Card */}
         <div className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-zinc-800 sm:gap-3">
           <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-base">
-            {user?.avatar || (user?.role === "admin" ? "👑" : user?.role === "owner" ? "🏢" : "👤")}
+            {user?.avatar || (
+              user?.role === "admin" ? (
+                <Crown aria-hidden="true" size={18} strokeWidth={1.8} />
+              ) : user?.role === "owner" ? (
+                <Building2 aria-hidden="true" size={18} strokeWidth={1.8} />
+              ) : (
+                <UserRound aria-hidden="true" size={18} strokeWidth={1.8} />
+              )
+            )}
           </div>
           <div className="hidden sm:block text-left">
             <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">

@@ -3,12 +3,13 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import Image from "next/image";
+import { ArrowRight, Building2, Crown, UserRound } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100 selection:bg-emerald-500/20 selection:text-emerald-400">
+    <div className="home-page min-h-screen flex flex-col bg-transparent text-zinc-100 selection:bg-emerald-500/20 selection:text-emerald-400">
       {/* Top Navbar */}
-      <header className="h-20 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50 px-6 sm:px-12 flex items-center justify-between">
+      <header className="home-header h-20 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50 px-6 sm:px-12 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/*
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-emerald-500/20">
@@ -20,7 +21,7 @@ export default function Home() {
               alt="Rentora Logo"
               width={38}
               height={40}
-              className="rounded-2xl"
+              className="h-10 w-auto rounded-2xl"
           />
           <span className="text-xl font-bold tracking-tight text-white">
             Rentora
@@ -63,10 +64,10 @@ export default function Home() {
         {/* 3 Portal Launch Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full text-left">
           {/* Admin Card */}
-          <div className="p-6 rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-950/20 to-zinc-900/60 backdrop-blur-xl relative overflow-hidden group hover:border-purple-500 transition-all duration-300 flex flex-col justify-between">
+          <div className="home-portal-card p-6 rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-950/20 to-zinc-900/60 backdrop-blur-xl relative overflow-hidden group hover:border-purple-500 transition-all duration-300 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-3xl">👑</span>
+                <Crown aria-hidden="true" size={30} strokeWidth={1.8} />
                 <Badge variant="purple" size="sm">Super Admin</Badge>
               </div>
               <h3 className="text-xl font-bold text-white">Platform Admin</h3>
@@ -84,17 +85,17 @@ export default function Home() {
             <div className="pt-6">
               <Link href="/admin/dashboard" className="block">
                 <Button size="sm" variant="secondary" className="w-full bg-purple-900/50 hover:bg-purple-800 text-purple-200 border-purple-500/30">
-                  Launch Admin Portal →
+                  Launch Admin Portal <ArrowRight aria-hidden="true" size={16} />
                 </Button>
               </Link>
             </div>
           </div>
 
           {/* Owner Card */}
-          <div className="p-6 rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 to-zinc-900/60 backdrop-blur-xl relative overflow-hidden group hover:border-emerald-500 transition-all duration-300 flex flex-col justify-between ring-1 ring-emerald-500/30">
+          <div className="home-portal-card p-6 rounded-3xl border border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 to-zinc-900/60 backdrop-blur-xl relative overflow-hidden group hover:border-emerald-500 transition-all duration-300 flex flex-col justify-between ring-1 ring-emerald-500/30">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-3xl">🏢</span>
+                <Building2 aria-hidden="true" size={30} strokeWidth={1.8} />
                 <Badge variant="success" size="sm">Landlord</Badge>
               </div>
               <h3 className="text-xl font-bold text-white">Property Owner</h3>
@@ -112,17 +113,17 @@ export default function Home() {
             <div className="pt-6">
               <Link href="/owner/dashboard" className="block">
                 <Button size="sm" variant="primary" className="w-full">
-                  Launch Owner Portal →
+                  Launch Owner Portal <ArrowRight aria-hidden="true" size={16} />
                 </Button>
               </Link>
             </div>
           </div>
 
           {/* Tenant Card */}
-          <div className="p-6 rounded-3xl border border-blue-500/30 bg-gradient-to-b from-blue-950/20 to-zinc-900/60 backdrop-blur-xl relative overflow-hidden group hover:border-blue-500 transition-all duration-300 flex flex-col justify-between">
+          <div className="home-portal-card p-6 rounded-3xl border border-blue-500/30 bg-gradient-to-b from-blue-950/20 to-zinc-900/60 backdrop-blur-xl relative overflow-hidden group hover:border-blue-500 transition-all duration-300 flex flex-col justify-between">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-3xl">👤</span>
+                <UserRound aria-hidden="true" size={30} strokeWidth={1.8} />
                 <Badge variant="info" size="sm">Resident</Badge>
               </div>
               <h3 className="text-xl font-bold text-white">Tenant Portal</h3>
@@ -140,7 +141,7 @@ export default function Home() {
             <div className="pt-6">
               <Link href="/tenant/dashboard" className="block">
                 <Button size="sm" variant="secondary" className="w-full bg-blue-900/50 hover:bg-blue-800 text-blue-200 border-blue-500/30">
-                  Launch Tenant Portal →
+                  Launch Tenant Portal <ArrowRight aria-hidden="true" size={16} />
                 </Button>
               </Link>
             </div>

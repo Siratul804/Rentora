@@ -4,34 +4,50 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import {
+  BarChart3,
+  Banknote,
+  Bell,
+  Building2,
+  ClipboardList,
+  CreditCard,
+  Crown,
+  FileText,
+  Hammer,
+  House,
+  Receipt,
+  UserRound,
+  UsersRound,
+  Wrench,
+} from "lucide-react";
 
 export const PORTAL_NAV_ITEMS = {
   admin: [
-    { label: "Dashboard", href: "/admin/dashboard", icon: "📊" },
-    { label: "Owners", href: "/admin/owners", icon: "🏢" },
-    { label: "Subscriptions", href: "/admin/subscriptions", icon: "💳" },
-    { label: "Service Providers", href: "/admin/service-providers", icon: "🛠️" },
-    { label: "Provider Job History", href: "/provider-job-history", icon: "📋" },
-    { label: "Reports", href: "/admin/reports", icon: "📈" },
+    { label: "Dashboard", href: "/admin/dashboard", icon: BarChart3 },
+    { label: "Owners", href: "/admin/owners", icon: Building2 },
+    { label: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
+    { label: "Service Providers", href: "/admin/service-providers", icon: Wrench },
+    { label: "Provider Job History", href: "/provider-job-history", icon: ClipboardList },
+    { label: "Reports", href: "/admin/reports", icon: BarChart3 },
   ],
   owner: [
-    { label: "Dashboard", href: "/owner/dashboard", icon: "📊" },
-    { label: "Properties", href: "/owner/properties", icon: "🏠" },
-    { label: "Tenants", href: "/owner/tenants", icon: "👥" },
-    { label: "Leases", href: "/owner/leases", icon: "📄" },
-    { label: "Notifications", href: "/owner/notifications", icon: "🔔" },
-    { label: "Invoices", href: "/owner/invoices", icon: "🧾" },
-    { label: "My Bills", href: "/owner/bills", icon: "💳" },
-    { label: "Payments", href: "/owner/payments", icon: "💰" },
-    { label: "Maintenance", href: "/owner/maintenance", icon: "🔧" },
-    { label: "Provider Job History", href: "/provider-job-history", icon: "📋" },
+    { label: "Dashboard", href: "/owner/dashboard", icon: BarChart3 },
+    { label: "Properties", href: "/owner/properties", icon: House },
+    { label: "Tenants", href: "/owner/tenants", icon: UsersRound },
+    { label: "Leases", href: "/owner/leases", icon: FileText },
+    { label: "Notifications", href: "/owner/notifications", icon: Bell },
+    { label: "Invoices", href: "/owner/invoices", icon: Receipt },
+    { label: "My Bills", href: "/owner/bills", icon: CreditCard },
+    { label: "Payments", href: "/owner/payments", icon: Banknote },
+    { label: "Maintenance", href: "/owner/maintenance", icon: Wrench },
+    { label: "Provider Job History", href: "/provider-job-history", icon: ClipboardList },
   ],
   tenant: [
-    { label: "Dashboard", href: "/tenant/dashboard", icon: "🏠" },
-    { label: "Payments", href: "/tenant/payments", icon: "💳" },
-    { label: "Maintenance", href: "/tenant/maintenance", icon: "🛠️" },
-    { label: "My Lease", href: "/tenant/lease", icon: "📄" },
-    { label: "Notifications", href: "/tenant/notifications", icon: "🔔" }
+    { label: "Dashboard", href: "/tenant/dashboard", icon: House },
+    { label: "Payments", href: "/tenant/payments", icon: CreditCard },
+    { label: "Maintenance", href: "/tenant/maintenance", icon: Hammer },
+    { label: "My Lease", href: "/tenant/lease", icon: FileText },
+    { label: "Notifications", href: "/tenant/notifications", icon: Bell }
   ],
 };
 
@@ -72,7 +88,7 @@ export function Sidebar({ portal = "owner" }) {
               alt="Rentora"
               width={38}
               height={40}
-              className="rounded-2xl transition-transform group-hover:scale-105"
+              className="h-10 w-auto rounded-2xl transition-transform group-hover:scale-105"
             />
             <div className="hidden sm:block">
               <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-zinc-100">
@@ -104,7 +120,7 @@ export function Sidebar({ portal = "owner" }) {
                     : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200"
                 )}
               >
-                <span aria-hidden="true" className="text-base">{item.icon}</span>
+                <item.icon aria-hidden="true" size={18} strokeWidth={1.8} className="shrink-0" />
                 <span className="hidden sm:inline">{item.label}</span>
                 {isActive && (
                   <span className="hidden sm:block ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -123,7 +139,13 @@ export function Sidebar({ portal = "owner" }) {
         </div>
         <div className="p-2.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span>{meta.badge === "Admin" ? "👑" : meta.badge === "Landlord" ? "🏢" : "👤"}</span>
+            {meta.badge === "Admin" ? (
+              <Crown aria-hidden="true" size={16} strokeWidth={1.8} />
+            ) : meta.badge === "Landlord" ? (
+              <Building2 aria-hidden="true" size={16} strokeWidth={1.8} />
+            ) : (
+              <UserRound aria-hidden="true" size={16} strokeWidth={1.8} />
+            )}
             <span className="font-semibold text-zinc-800 dark:text-zinc-200">{meta.title}</span>
           </div>
           <span className={`px-2 py-0.5 rounded-md text-[10px] font-medium border ${meta.badgeColor}`}>

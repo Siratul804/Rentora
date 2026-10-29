@@ -9,39 +9,6 @@ import { Input } from "@/components/ui/Input";
 import { formatCurrency } from "@/lib/utils";
 import { propertiesApi } from "@/lib/api";
 
-const INITIAL_PROPERTIES = [
-  {
-    id: "prop-1",
-    name: "Green Horizon Residency",
-    address: "House 42, Road 11, Dhanmondi, Dhaka",
-    totalUnits: 8,
-    occupiedUnits: 7,
-    monthlyYield: 256000,
-    type: "Apartment",
-    status: "Active",
-  },
-  {
-    id: "prop-2",
-    name: "Lakeview Terrace Apartments",
-    address: "Plot 18, Block D, Bashundhara R/A, Dhaka",
-    totalUnits: 10,
-    occupiedUnits: 9,
-    monthlyYield: 320000,
-    type: "Apartment",
-    status: "Active",
-  },
-  {
-    id: "prop-3",
-    name: "Gulshan Heights Studio Tower",
-    address: "Avenue 4, Gulshan-2, Dhaka",
-    totalUnits: 6,
-    occupiedUnits: 6,
-    monthlyYield: 270000,
-    type: "Commercial",
-    status: "Active",
-  },
-];
-
 const PROPERTY_TYPES = ["Apartment", "House", "Commercial", "Office", "Other"];
 
 export default function OwnerPropertiesPage() {
@@ -53,45 +20,57 @@ export default function OwnerPropertiesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   // Property Form State
   const [formData, setFormData] = useState({
     name: "",
     address: "",
     type: "Apartment",
-    totalUnits: "4",
+    totalUnits: "",
     status: "Active",
   });
 
   const fetchProperties = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await propertiesApi.getAll();
-      if (data?.properties && data.properties.length > 0) {
-        const formatted = data.properties.map((p) => ({
-          id: p.id,
-          name: p.name,
-          address: p.address,
-          type: p.type,
-          totalUnits: p.totalUnits,
-          occupiedUnits: p.occupiedUnits || 0,
-          monthlyYield: p.monthlyYield || p.totalUnits * 25000,
-          status: p.status,
-          createdAt: p.createdAt,
-        }));
-        setProperties(formatted);
-        setSelectedProperty((prev) =>
-          prev ? formatted.find((item) => item.id === prev.id) || formatted[0] : formatted[0]
+      const [propertyData, leaseData] = await Promise.all([
+        propertiesApi.getAll(),
+        fetch("/api/owner/leases").then(async (response) => {
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Failed to load lease records.");
+          return data;
+        }),
+      ]);
+      const leases = (leaseData.leases || []).filter((lease) => lease.status === "Active");
+      const formatted = (propertyData.properties || []).map((property) => {
+        const propertyLeases = leases.filter((lease) =>
+          property.id
+            ? lease.propertyId === property.id
+            : lease.propertyName === property.name
         );
-      } else {
-        // If no properties created in DB yet, show initial mock set for preview
-        setProperties(INITIAL_PROPERTIES);
-        setSelectedProperty(INITIAL_PROPERTIES[0]);
-      }
+        return {
+          id: property.id,
+          name: property.name,
+          address: property.address,
+          type: property.type,
+          totalUnits: property.totalUnits,
+          occupiedUnits: propertyLeases.length,
+          monthlyYield: propertyLeases.reduce((total, lease) => total + (Number(lease.rent) || 0), 0),
+          status: property.status,
+          createdAt: property.createdAt,
+        };
+      });
+      setLoadError("");
+      setProperties(formatted);
+      setSelectedProperty((prev) =>
+        prev ? formatted.find((item) => item.id === prev.id) || formatted[0] || null : formatted[0] || null
+      );
     } catch (err) {
       console.error("Failed to load properties:", err);
-      setProperties(INITIAL_PROPERTIES);
-      setSelectedProperty(INITIAL_PROPERTIES[0]);
+      setLoadError(err.message || "Failed to load properties.");
+      setProperties([]);
+      setSelectedProperty(null);
     } finally {
       setLoading(false);
     }
@@ -109,7 +88,7 @@ export default function OwnerPropertiesPage() {
       name: "",
       address: "",
       type: "Apartment",
-      totalUnits: "4",
+      totalUnits: "",
       status: "Active",
     });
     setModalOpen(true);
@@ -123,7 +102,7 @@ export default function OwnerPropertiesPage() {
       name: prop.name || "",
       address: prop.address || "",
       type: prop.type || "Apartment",
-      totalUnits: String(prop.totalUnits || "1"),
+      totalUnits: String(prop.totalUnits ?? ""),
       status: prop.status || "Active",
     });
     setModalOpen(true);
@@ -144,25 +123,8 @@ export default function OwnerPropertiesPage() {
       };
 
       if (editingProperty) {
-        if (editingProperty.id && editingProperty.id.length === 24) {
-          const data = await propertiesApi.update(editingProperty.id, payload);
-          setSuccessMessage(`Property "${data.property.name}" updated successfully!`);
-        } else {
-          // Fallback update for starter mock items
-          setProperties((prev) =>
-            prev.map((item) =>
-              item.id === editingProperty.id
-                ? { ...item, ...payload, monthlyYield: payload.totalUnits * 25000 }
-                : item
-            )
-          );
-          setSelectedProperty((prev) =>
-            prev?.id === editingProperty.id
-              ? { ...prev, ...payload, monthlyYield: payload.totalUnits * 25000 }
-              : prev
-          );
-          setSuccessMessage(`Property "${payload.name}" updated successfully!`);
-        }
+        const data = await propertiesApi.update(editingProperty.id, payload);
+        setSuccessMessage(`Property "${data.property.name}" updated successfully!`);
       } else {
         const data = await propertiesApi.create(payload);
         setSuccessMessage(`Property "${data.property.name}" added successfully!`);
@@ -191,7 +153,7 @@ export default function OwnerPropertiesPage() {
     }
   };
 
-  const activeProperty = selectedProperty || properties[0] || INITIAL_PROPERTIES[0];
+  const activeProperty = selectedProperty || properties[0] || null;
 
   return (
     <DashboardShell
@@ -224,12 +186,24 @@ export default function OwnerPropertiesPage() {
         <div className="p-12 text-center text-sm text-zinc-500">
           Loading properties from database...
         </div>
+      ) : loadError ? (
+        <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-6 text-sm text-rose-700 dark:text-rose-300">
+          {loadError}
+        </div>
+      ) : properties.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center text-sm text-zinc-500">
+            No properties have been added to your portfolio yet.
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {properties.map((prop) => {
-            const totalUnits = prop.totalUnits || 1;
+            const totalUnits = Number(prop.totalUnits) || 0;
             const occupied = prop.occupiedUnits || 0;
-            const occupancy = Math.min(100, Math.round((occupied / totalUnits) * 100));
+            const occupancy = totalUnits
+              ? Math.min(100, Math.round((occupied / totalUnits) * 100))
+              : 0;
             const isSelected = activeProperty?.id === prop.id;
 
             return (
