@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
 import { Invoice } from "@/lib/models/Invoice";
+import { isDemoPaymentMode } from "@/lib/paymentMode";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,6 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request) {
   try {
-    const storeId = process.env.SSLCOMMERZ_STORE_ID;
-    const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
     const appUrl = (
       process.env.APP_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -45,24 +44,58 @@ export async function POST(request) {
     // Unique Transaction ID (max 30 alphanumeric chars)
     const tran_id = `RENTORA_${Date.now()}_${Math.floor(100 + Math.random() * 900)}`;
 
-    // If an owner account exists, ensure or create an Invoice record in Pending status
+    // Demo checkout only applies to owner activation, not the standalone gateway test page.
     if (email) {
       await dbConnect();
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        await Invoice.findOneAndUpdate(
-          { ownerId: existingUser._id, type: "owner_registration" },
-          {
-            ownerId: existingUser._id,
-            type: "owner_registration",
-            rentAmount: 499,
-            status: "Pending",
-            tranId: tran_id,
-            dueDate: new Date(),
-          },
-          { upsert: true, new: true }
+      const existingUser = await User.findOne({ email, role: "owner" });
+      if (!existingUser) {
+        return NextResponse.json(
+          { success: false, error: "No owner account was found for this payment." },
+          { status: 404 }
         );
       }
+
+      if (existingUser.status === "Paid") {
+        return NextResponse.json(
+          { success: false, error: "This owner account has already been activated." },
+          { status: 409 }
+        );
+      }
+
+      await Invoice.findOneAndUpdate(
+        { ownerId: existingUser._id, type: "owner_registration" },
+        {
+          ownerId: existingUser._id,
+          type: "owner_registration",
+          rentAmount: 499,
+          status: "Pending",
+          tranId: tran_id,
+          valId: "",
+          dueDate: new Date(),
+        },
+        { upsert: true, new: true }
+      );
+
+      if (isDemoPaymentMode()) {
+        return NextResponse.json({
+          success: true,
+          gatewayUrl: `/payment/demo?tran_id=${encodeURIComponent(tran_id)}`,
+          tran_id,
+        });
+      }
+    }
+
+    const storeId = process.env.SSLCOMMERZ_STORE_ID;
+    const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
+    if (!storeId || !storePassword) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Missing SSLCOMMERZ credentials in .env.local (SSLCOMMERZ_STORE_ID and SSLCOMMERZ_STORE_PASSWORD are required)",
+        },
+        { status: 500 }
+      );
     }
 
     // Prepare parameters via FormData as required by SSLCOMMERZ v4

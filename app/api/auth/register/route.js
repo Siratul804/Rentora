@@ -4,6 +4,7 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
 import { Invoice } from "@/lib/models/Invoice";
 import { ROLES } from "@/lib/auth";
+import { isDemoPaymentMode } from "@/lib/paymentMode";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +84,15 @@ export async function POST(request) {
       },
       { upsert: true, new: true }
     );
+
+    if (isDemoPaymentMode()) {
+      return NextResponse.json({
+        success: true,
+        requiresPayment: true,
+        gatewayUrl: `/payment/demo?tran_id=${encodeURIComponent(tran_id)}`,
+        message: "Registration initiated. Continue to the demo checkout.",
+      });
+    }
 
     // Initiate SSLCOMMERZ ৳499 Payment Session
     const storeId = process.env.SSLCOMMERZ_STORE_ID;
