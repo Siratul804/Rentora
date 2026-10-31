@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
 import { Invoice } from "@/lib/models/Invoice";
-import { isDemoPaymentMode } from "@/lib/paymentMode";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +11,8 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request) {
   try {
+    const storeId = process.env.SSLCOMMERZ_STORE_ID;
+    const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
     const appUrl = (
       process.env.APP_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
@@ -76,26 +77,6 @@ export async function POST(request) {
         { upsert: true, new: true }
       );
 
-      if (isDemoPaymentMode()) {
-        return NextResponse.json({
-          success: true,
-          gatewayUrl: `/payment/demo?tran_id=${encodeURIComponent(tran_id)}`,
-          tran_id,
-        });
-      }
-    }
-
-    const storeId = process.env.SSLCOMMERZ_STORE_ID;
-    const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
-    if (!storeId || !storePassword) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Missing SSLCOMMERZ credentials in .env.local (SSLCOMMERZ_STORE_ID and SSLCOMMERZ_STORE_PASSWORD are required)",
-        },
-        { status: 500 }
-      );
     }
 
     // Prepare parameters via FormData as required by SSLCOMMERZ v4
