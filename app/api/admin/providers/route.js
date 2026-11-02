@@ -1,23 +1,24 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Provider from "@/lib/models/Provider";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "@/lib/jwt";
 
-function verifyAdmin(req) {
+async function verifyAdmin(req) {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "superadmin") throw new Error("Forbidden");
+    const decoded = await verifyToken(token);
+    if (!decoded) throw new Error("Unauthorized");
+    if (decoded.role !== "superadmin" && decoded.role !== "admin") throw new Error("Forbidden");
 
-    return decoded.userId;
+    return decoded.userId || decoded.id;
 }
 
 export async function GET(req) {
     try {
         await dbConnect();
-        verifyAdmin(req);
+        await verifyAdmin(req);
 
         const pendingProviders = await Provider.find({ status: "pending" });
         return NextResponse.json(pendingProviders);
