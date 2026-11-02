@@ -38,7 +38,7 @@ export default function Home() {
           <span className="text-xl font-bold tracking-tight text-white">
             Rentora
           </span>
-          <Badge variant="purple" size="sm" className="hidden sm:inline-flex ml-2">
+          <Badge variant="purple" size="sm" className="hidden shrink-0 whitespace-nowrap sm:ml-2 sm:inline-flex">
             Multi-Tenant SaaS
           </Badge>
         </div>

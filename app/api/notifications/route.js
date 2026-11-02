@@ -193,11 +193,15 @@ export async function PUT(request) {
       }
       events[key] = { enabled: event.enabled, email: event.email, sms: event.sms };
       if (key === "rentDue" || key === "leaseExpiry") {
-        if (!Array.isArray(event.daysBefore) ||
-            !event.daysBefore.every((day) => REMINDER_DAYS.includes(day))) {
-          return NextResponse.json({ error: "Select valid reminder periods." }, { status: 400 });
-        }
-        events[key].daysBefore = [...new Set(event.daysBefore)].sort((a, b) => b - a);
+        const defaultDays = key === "rentDue" ? [7] : [30, 15, 7];
+        const selectedDays = Array.isArray(event.daysBefore)
+          ? event.daysBefore.map((day) =>
+              typeof day === "string" && day.trim() !== "" ? Number(day) : day
+            )
+          : defaultDays;
+        events[key].daysBefore = [...new Set(
+          selectedDays.filter((day) => REMINDER_DAYS.includes(day))
+        )].sort((a, b) => b - a);
       }
     }
 

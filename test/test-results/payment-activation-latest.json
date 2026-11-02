@@ -1,0 +1,116 @@
+{
+  "suite": "payment activation",
+  "executedAt": "2026-11-02T17:32:56.844Z",
+  "summary": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0
+  },
+  "cases": [
+    {
+      "id": "AUTH-PAYMENT-001",
+      "description": "New owner remains unpaid while activation invoice is pending",
+      "preconditions": "Demo payment is enabled and MongoDB is available.",
+      "steps": [
+        "Register a new owner.",
+        "Verify the owner and activation invoice before checkout completes."
+      ],
+      "expectedResult": "Owner and invoice are Pending until successful payment.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-PAYMENT-002",
+      "description": "Successful demo payment activates owner account",
+      "preconditions": "A pending demo registration transaction exists.",
+      "steps": [
+        "Complete the demo checkout.",
+        "Verify login success banner."
+      ],
+      "expectedResult": "Payment succeeds and user is redirected to login with a success message.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-PAYMENT-003",
+      "description": "Successful payment updates owner subscription",
+      "preconditions": "The demo payment callback completed successfully.",
+      "steps": [
+        "Read the registered owner from the database."
+      ],
+      "expectedResult": "Owner status is Paid.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-PAYMENT-004",
+      "description": "Paid owner can sign in",
+      "preconditions": "Owner activation payment succeeded.",
+      "steps": [
+        "Sign in using the activated owner account."
+      ],
+      "expectedResult": "Owner is redirected to the owner dashboard.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-PAYMENT-005",
+      "description": "Paid owner can open owner dashboard",
+      "preconditions": "Owner activation payment succeeded.",
+      "steps": [
+        "Open /owner/dashboard directly."
+      ],
+      "expectedResult": "Owner dashboard is accessible.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-PAYMENT-006",
+      "description": "Successful payment updates activation invoice",
+      "preconditions": "Owner activation payment succeeded.",
+      "steps": [
+        "Read the registration invoice from the database."
+      ],
+      "expectedResult": "Invoice is Paid and records the transaction and validation IDs.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-PAYMENT-007",
+      "description": "Failed payment marks owner failed and displays error",
+      "preconditions": "A pending failure-test owner exists and MongoDB is available.",
+      "steps": [
+        "POST a failed payment callback.",
+        "Verify owner status and failure banner."
+      ],
+      "expectedResult": "Owner status is Failed and login shows the payment failure message.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-PAYMENT-008",
+      "description": "Cancelled payment leaves owner pending and displays warning",
+      "preconditions": "A pending cancellation-test owner exists and MongoDB is available.",
+      "steps": [
+        "POST a payment cancellation callback.",
+        "Verify owner status and cancellation banner."
+      ],
+      "expectedResult": "Owner remains Pending and login explains payment is required.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-PAYMENT-009",
+      "description": "Demo checkout cancellation returns to login",
+      "preconditions": "Demo checkout page is available.",
+      "steps": [
+        "Open demo checkout.",
+        "Click Cancel and return to sign in."
+      ],
+      "expectedResult": "Browser returns to login with payment=cancelled.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    }
+  ]
+}

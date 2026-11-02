@@ -1165,22 +1165,22 @@ export default function OwnerLeasesPage() {
               </div>
 
               {/* Financial & Term Grid */}
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
+              <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 gap-3 text-center">
+                <div className="min-w-0 p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
                   <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Rent / Mo</span>
-                  <div className="text-base font-extrabold text-zinc-900 dark:text-white mt-0.5">
+                  <div className="break-words text-base font-extrabold text-zinc-900 dark:text-white mt-0.5">
                     {formatCurrency(activeLease.rent)}
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
+                <div className="min-w-0 p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
                   <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Deposit</span>
-                  <div className="text-base font-extrabold text-zinc-900 dark:text-white mt-0.5">
+                  <div className="break-words text-base font-extrabold text-zinc-900 dark:text-white mt-0.5">
                     {formatCurrency(activeLease.deposit || 0)}
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
+                <div className="min-w-0 p-3.5 rounded-2xl bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-zinc-200/60 dark:border-white/10">
                   <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">Duration</span>
                   <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-200 mt-1">
                     {activeLease.startDate} <br />

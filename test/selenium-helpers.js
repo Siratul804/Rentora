@@ -1,6 +1,8 @@
 require("dotenv").config({ path: ".env.local" });
 
 const assert = require("node:assert/strict");
+const { mkdir, writeFile } = require("node:fs/promises");
+const path = require("node:path");
 const { spawn } = require("node:child_process");
 const net = require("node:net");
 const { Builder, By, until } = require("selenium-webdriver");
@@ -110,24 +112,60 @@ async function runSuite(suiteName, tests) {
   let server;
   let passed = 0;
   let skipped = 0;
+  let blocked = 0;
   let failures = 0;
+  const completedCases = new Map();
 
   try {
     server = await ensureLocalServer();
     driver = await createDriver();
-    for (const test of tests) {
+    for (const [index, test] of tests.entries()) {
+      test.caseId = test.caseId || `${suiteName.toUpperCase().replace(/[^A-Z0-9]+/g, "-")}-${String(index + 1).padStart(3, "0")}`;
+      test.description = test.description || test.name;
+      test.preconditions = test.preconditions || "Application and required test accounts are configured.";
+      test.steps = test.steps || [`Execute the scenario: ${test.description}.`];
+      test.expectedResult = test.expectedResult || "The scenario completes and all assertions pass.";
+      test.actualResult = test.actualResult || "Not run";
+      test.status = test.status || "Not Run";
+
+      const failedDependency = (test.dependsOn || []).find(
+        (dependencyId) => completedCases.get(dependencyId) !== "Pass"
+      );
+      if (failedDependency) {
+        test.actualResult = `Not run: prerequisite ${failedDependency} did not pass.`;
+        test.status = "Not Run";
+        test.blockingSkip = true;
+        blocked += 1;
+        console.log(`BLOCKED ${suiteName}: ${test.name} (${test.actualResult})`);
+        completedCases.set(test.id || test.caseId, test.status);
+        continue;
+      }
+
       if (test.skip) {
-        skipped += 1;
-        console.log(`SKIP ${suiteName}: ${test.name} (${test.skip})`);
+        test.actualResult = test.skip;
+        if (test.blockingSkip) {
+          blocked += 1;
+          console.log(`BLOCKED ${suiteName}: ${test.name} (${test.skip})`);
+        } else {
+          skipped += 1;
+          console.log(`SKIP ${suiteName}: ${test.name} (${test.skip})`);
+        }
+        completedCases.set(test.id || test.caseId, test.status);
         continue;
       }
 
       try {
         await test.run(driver);
         passed += 1;
+        test.actualResult = "Passed: observed behavior matched the expected result.";
+        test.status = "Pass";
+        completedCases.set(test.id || test.caseId, test.status);
         console.log(`PASS ${suiteName}: ${test.name}`);
       } catch (error) {
         failures += 1;
+        test.actualResult = `Failed: ${error.message || error}`;
+        test.status = "Fail";
+        completedCases.set(test.id || test.caseId, test.status);
         console.error(`FAIL ${suiteName}: ${test.name}`);
         console.error(error.stack || error.message || error);
       }
@@ -141,8 +179,39 @@ async function runSuite(suiteName, tests) {
     if (server) server.kill();
   }
 
-  if (failures) process.exitCode = 1;
-  return { passed, failed: failures, skipped };
+  const reportDirectory = path.join(__dirname, "test-results");
+  const reportPath = path.join(
+    reportDirectory,
+    `${suiteName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-latest.json`
+  );
+  try {
+    await mkdir(reportDirectory, { recursive: true });
+    await writeFile(
+      reportPath,
+      `${JSON.stringify({
+        suite: suiteName,
+        executedAt: new Date().toISOString(),
+        summary: { passed, failed: failures, skipped, blocked },
+        cases: tests.map((test) => ({
+          id: test.id || test.caseId,
+          description: test.description,
+          preconditions: test.preconditions,
+          steps: test.steps,
+          expectedResult: test.expectedResult,
+          actualResult: test.actualResult,
+          status: test.status,
+        })),
+      }, null, 2)}\n`
+    );
+    console.log(`Test execution report written to ${reportPath}`);
+  } catch (error) {
+    failures += 1;
+    console.error(`FAIL ${suiteName}: could not write execution report`);
+    console.error(error.stack || error.message || error);
+  }
+
+  if (failures || blocked) process.exitCode = 1;
+  return { passed, failed: failures, skipped, blocked, reportPath };
 }
 
 module.exports = {

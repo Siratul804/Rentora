@@ -1,0 +1,56 @@
+{
+  "suite": "login",
+  "executedAt": "2026-11-02T17:07:13.362Z",
+  "summary": {
+    "passed": 4,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0
+  },
+  "cases": [
+    {
+      "id": "LOGIN-001",
+      "description": "valid admin login redirects to the admin dashboard",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: valid admin login redirects to the admin dashboard."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "LOGIN-002",
+      "description": "valid owner login redirects to the owner dashboard",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: valid owner login redirects to the owner dashboard."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "LOGIN-003",
+      "description": "valid tenant login redirects to the tenant dashboard",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: valid tenant login redirects to the tenant dashboard."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "LOGIN-004",
+      "description": "invalid credentials show the login error and do not redirect",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: invalid credentials show the login error and do not redirect."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    }
+  ]
+}

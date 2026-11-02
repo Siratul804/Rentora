@@ -57,6 +57,7 @@ export function LeaseNotifications({ portal }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [preferencesExpanded, setPreferencesExpanded] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -108,6 +109,7 @@ export function LeaseNotifications({ portal }) {
       }
       setEvents(data.preferences.events);
       setMessage("Your notification preferences have been saved.");
+      setPreferencesExpanded(false);
     } catch (saveError) {
       setError(saveError.message || "Could not save your preferences.");
     } finally {
@@ -177,14 +179,33 @@ export function LeaseNotifications({ portal }) {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Notification preferences</CardTitle>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            In-app alerts stay on. Choose the events you want and enable email or SMS when those channels are configured.
-          </p>
+        <CardHeader className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+          <div className="min-w-0">
+            <CardTitle>Notification preferences</CardTitle>
+            {preferencesExpanded ? (
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                In-app alerts stay on. Choose the events you want and enable email or SMS when those channels are configured.
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Preferences are saved.
+              </p>
+            )}
+          </div>
+          {!preferencesExpanded && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPreferencesExpanded(true)}
+            >
+              Edit preferences
+            </Button>
+          )}
         </CardHeader>
-        <CardContent>
-          <form onSubmit={savePreferences} className="space-y-5">
+        {preferencesExpanded && (
+          <CardContent>
+            <form onSubmit={savePreferences} className="space-y-5">
             {visibleEvents.map(({ key, label, hasPeriod }) => {
               const event = events[key];
               if (!event) return null;
@@ -252,8 +273,9 @@ export function LeaseNotifications({ portal }) {
             <Button type="submit" disabled={saving || !Object.keys(events).length}>
               {saving ? "Saving..." : "Save preferences"}
             </Button>
-          </form>
-        </CardContent>
+            </form>
+          </CardContent>
+        )}
       </Card>
 
       <Card>

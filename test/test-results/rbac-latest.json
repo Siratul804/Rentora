@@ -1,0 +1,78 @@
+{
+  "suite": "RBAC",
+  "executedAt": "2026-11-02T17:07:27.063Z",
+  "summary": {
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0
+  },
+  "cases": [
+    {
+      "id": "RBAC-001",
+      "description": "Owner is redirected away from the admin dashboard",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: Owner is redirected away from the admin dashboard."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "RBAC-002",
+      "description": "Tenant is redirected away from the admin dashboard",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: Tenant is redirected away from the admin dashboard."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "RBAC-003",
+      "description": "Owner is blocked from owner approval API functionality",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: Owner is blocked from owner approval API functionality."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "RBAC-004",
+      "description": "Tenant is blocked from owner approval API functionality",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: Tenant is blocked from owner approval API functionality."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "RBAC-005",
+      "description": "Unauthorized user is redirected to login from a protected admin route",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: Unauthorized user is redirected to login from a protected admin route."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "RBAC-006",
+      "description": "Super Admin can access protected admin routes",
+      "preconditions": "Application and required test accounts are configured.",
+      "steps": [
+        "Execute the scenario: Super Admin can access protected admin routes."
+      ],
+      "expectedResult": "The scenario completes and all assertions pass.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    }
+  ]
+}

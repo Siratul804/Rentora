@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "node test/property_lease_test.js",
+    "test:auth": "node test/login_test.js && node test/rbac_test.js && node test/auth_rbac_test.js && node test/payment_activation_test.js",
     "test:security": "node test/security_audit_test.js"
   },
   "dependencies": {

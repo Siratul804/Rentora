@@ -1,0 +1,226 @@
+{
+  "suite": "auth/RBAC",
+  "executedAt": "2026-11-02T17:08:14.324Z",
+  "summary": {
+    "passed": 18,
+    "failed": 0,
+    "skipped": 0,
+    "blocked": 0
+  },
+  "cases": [
+    {
+      "id": "AUTH-LOGIN-001",
+      "description": "Login API rejects a missing email",
+      "preconditions": "Application is running and no authenticated session is required.",
+      "steps": [
+        "POST /api/auth/login with a password and no email."
+      ],
+      "expectedResult": "HTTP 400 with a required-credentials error; no session is created.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-LOGIN-002",
+      "description": "Login API rejects a missing password",
+      "preconditions": "Application is running and no authenticated session is required.",
+      "steps": [
+        "POST /api/auth/login with an email and no password."
+      ],
+      "expectedResult": "HTTP 400 with a required-credentials error; no session is created.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-LOGIN-003",
+      "description": "Inactive tenant login is denied",
+      "preconditions": "A disabled tenant fixture exists in the configured test database.",
+      "steps": [
+        "POST /api/auth/login with the disabled tenant's valid credentials."
+      ],
+      "expectedResult": "HTTP 403 explains the account is deactivated; no authenticated session is issued.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-LOGIN-004",
+      "description": "Unpaid owner login requires activation payment",
+      "preconditions": "An active owner fixture with Pending payment status exists.",
+      "steps": [
+        "POST /api/auth/login with the pending owner's valid credentials."
+      ],
+      "expectedResult": "HTTP 402 identifies the required activation payment and does not issue a session.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-LOGIN-005",
+      "description": "Paid owner login creates a persistent owner session",
+      "preconditions": "A paid owner fixture exists in the configured test database.",
+      "steps": [
+        "Sign in with the paid fixture account.",
+        "Verify the owner dashboard redirect and /api/auth/me session.",
+        "Reload the dashboard and verify the remembered session."
+      ],
+      "expectedResult": "The owner reaches /owner/dashboard and remains authenticated after reload.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-REGISTER-001",
+      "description": "Registration API rejects missing required fields",
+      "preconditions": "Application is running; no database fixture is required.",
+      "steps": [
+        "POST /api/auth/register with an empty JSON object."
+      ],
+      "expectedResult": "HTTP 400 lists the required registration fields.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-REGISTER-002",
+      "description": "Registration form rejects an invalid email format",
+      "preconditions": "Registration form is available.",
+      "steps": [
+        "Open /register.",
+        "Enter a name, invalid email, and a password of at least six characters.",
+        "Check native form validity before submitting."
+      ],
+      "expectedResult": "The email input reports a type mismatch and the form cannot submit.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-REGISTER-003",
+      "description": "Registration rejects an existing paid owner email",
+      "preconditions": "A paid owner fixture exists in the configured test database.",
+      "steps": [
+        "POST /api/auth/register using the existing paid owner's email."
+      ],
+      "expectedResult": "HTTP 409 informs the user to sign in; no second account or checkout is created.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-REGISTER-004",
+      "description": "Registration rejects passwords shorter than six characters",
+      "preconditions": "Application is running; validation occurs before database access.",
+      "steps": [
+        "POST /api/auth/register with valid name/email and a five-character password."
+      ],
+      "expectedResult": "HTTP 400 explains that passwords must contain at least six characters.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-RBAC-001",
+      "description": "Owner can access owner dashboard and owner API but not tenant dashboard",
+      "preconditions": "A paid owner fixture exists in the configured test database.",
+      "steps": [
+        "Sign in as the fixture owner.",
+        "Request GET /api/owner/tenants and check its response.",
+        "Open /tenant/dashboard directly."
+      ],
+      "expectedResult": "Owner API returns HTTP 200 and a direct tenant URL redirects to /owner/dashboard.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-RBAC-002",
+      "description": "Tenant can access tenant dashboard and tenant API but not owner dashboard",
+      "preconditions": "A valid tenant test account is configured using TENANT_EMAIL and TENANT_PASSWORD.",
+      "steps": [
+        "Sign in as the configured tenant.",
+        "Request GET /api/tenant/rent-summary.",
+        "Open /owner/dashboard directly."
+      ],
+      "expectedResult": "Tenant API returns HTTP 200 and a direct owner URL redirects to /tenant/dashboard.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-RBAC-003",
+      "description": "Admin-only owner API is forbidden to owner and tenant sessions",
+      "preconditions": "Admin, owner, and tenant credentials are available.",
+      "steps": [
+        "Sign in separately as owner and tenant.",
+        "Request GET /api/admin/owner with each session."
+      ],
+      "expectedResult": "Both non-admin roles receive HTTP 403.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-RBAC-004",
+      "description": "Super Admin can access the admin-only owner API",
+      "preconditions": "Valid Super Admin credentials are configured.",
+      "steps": [
+        "Sign in as Super Admin and request GET /api/admin/owner."
+      ],
+      "expectedResult": "The admin-only API responds with HTTP 200 and a successful response body.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-RBAC-005",
+      "description": "Unauthenticated API requests are denied",
+      "preconditions": "Application is running and browser cookies are cleared.",
+      "steps": [
+        "Request owner, tenant, and admin APIs without an authentication cookie."
+      ],
+      "expectedResult": "Each protected API responds with HTTP 401 or 403.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-RBAC-006",
+      "description": "Each role is restricted to its own dashboard by middleware",
+      "preconditions": "Application is running and JWT_SECRET matches the application configuration.",
+      "steps": [
+        "For Admin, Owner, and Tenant, open each of /admin/dashboard, /owner/dashboard, and /tenant/dashboard.",
+        "Verify the user's own dashboard is permitted and all other dashboards redirect to their role dashboard."
+      ],
+      "expectedResult": "All nine role/route combinations enforce role-specific access.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-RBAC-007",
+      "description": "Role-restricted APIs deny requests from other authenticated roles",
+      "preconditions": "Application is running and JWT_SECRET matches the application configuration.",
+      "steps": [
+        "Use Admin and Tenant sessions to request GET /api/owner/tenants.",
+        "Use Admin and Owner sessions to request GET /api/tenant/rent-summary.",
+        "Use Owner and Tenant sessions to request GET /api/admin/owner."
+      ],
+      "expectedResult": "Every non-authorized role receives HTTP 403.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-SESSION-002",
+      "description": "Expired sessions are rejected and protected routes redirect to login",
+      "preconditions": "Application is running and JWT_SECRET matches the application configuration.",
+      "steps": [
+        "Set an expired rentora_token cookie.",
+        "Request /api/auth/me.",
+        "Open /admin/dashboard directly."
+      ],
+      "expectedResult": "The session API returns no user and middleware redirects to login.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    },
+    {
+      "id": "AUTH-LOGOUT-001",
+      "description": "Logout clears the session and remembered authentication state",
+      "preconditions": "A paid owner fixture exists in the configured test database.",
+      "steps": [
+        "Sign in as the fixture owner.",
+        "Click Logout.",
+        "Request /api/auth/me and inspect local storage."
+      ],
+      "expectedResult": "The user is redirected to login, server session is null, and remembered user data is removed.",
+      "actualResult": "Passed: observed behavior matched the expected result.",
+      "status": "Pass"
+    }
+  ]
+}
