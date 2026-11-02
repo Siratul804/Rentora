@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
+import { CreditCard, Banknote, LockKeyhole, ScrollText, Receipt, ShieldCheck } from "lucide-react";
 
 const glassCard =
   "bg-white/60 dark:bg-zinc-900/50 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-lg shadow-zinc-900/5 dark:shadow-black/10 transition-all duration-300 hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-500/30";
@@ -59,7 +60,7 @@ export default function OwnerBillsPage() {
           <Card className={glassCard}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
-                <span className="text-2xl">💳</span>
+                <CreditCard aria-hidden="true" className="h-6 w-6 text-zinc-500" />
                 <Badge variant={payment?.status === "Paid" ? "success" : "warning"} size="sm">
                   {payment?.status === "Paid" ? "Paid ✓" : "Pending"}
                 </Badge>
@@ -78,7 +79,7 @@ export default function OwnerBillsPage() {
           <Card className={glassCard}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
-                <span className="text-2xl">💰</span>
+                <Banknote aria-hidden="true" className="h-6 w-6 text-emerald-600" />
                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
                   One-time
                 </span>
@@ -97,7 +98,7 @@ export default function OwnerBillsPage() {
           <Card className={glassCard}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
-                <span className="text-2xl">🔒</span>
+                <LockKeyhole aria-hidden="true" className="h-6 w-6 text-zinc-500" />
                 <span className="text-[10px] font-mono text-zinc-400 px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">
                   SSLCommerz
                 </span>
@@ -116,7 +117,7 @@ export default function OwnerBillsPage() {
           <Card className={glassCard}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
-                <span className="text-2xl">📜</span>
+                <ScrollText aria-hidden="true" className="h-6 w-6 text-purple-500" />
                 <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">
                   Lifetime
                 </span>
@@ -177,7 +178,7 @@ export default function OwnerBillsPage() {
                       >
                         <td className="px-5 py-4">
                           <div className="font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                            <span>🧾</span>
+                            <Receipt aria-hidden="true" className="h-4 w-4 text-zinc-400" />
                             <span>{bill.title}</span>
                           </div>
                           <div className="text-[11px] text-zinc-400 mt-0.5">
@@ -222,7 +223,7 @@ export default function OwnerBillsPage() {
         {/* Security & Verification Note */}
         <div className="p-4 rounded-2xl bg-zinc-100/60 dark:bg-zinc-900/40 border border-zinc-200/60 dark:border-zinc-800/60 text-xs text-zinc-600 dark:text-zinc-400 space-y-1.5">
           <div className="font-semibold text-zinc-900 dark:text-zinc-200 flex items-center gap-1.5">
-            <span>🛡️</span>
+            <ShieldCheck aria-hidden="true" className="h-4 w-4 text-emerald-600" />
             <span>SSLCommerz Server Verification Guarantee</span>
           </div>
           <p className="text-[11px] leading-relaxed">

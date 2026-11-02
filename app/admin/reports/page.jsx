@@ -1,102 +1,105 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
 
+function MetricCard({ title, value, detail }) {
+  return (
+    <Card>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardContent>
+        <div className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">{value}</div>
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">{detail}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminReportsPage() {
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/admin/reports", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to load platform reports.");
+        if (!data.report) throw new Error("The server returned invalid report data.");
+        if (active) setReport(data.report);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message || "Failed to load platform reports.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function downloadReport() {
+    setDownloading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/admin/reports", { method: "POST" });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to download the report.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "rentora-platform-report.pdf";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setError(downloadError.message || "Failed to download the report.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <DashboardShell
       portal="admin"
       title="Platform Analytics & Reports"
-      subtitle="Financial performance, subscription MRR, dispatch metrics, and system audits"
+      subtitle="Current financial, property, maintenance, and audit records"
       actions={
-        <Button variant="outline" size="md">
-          Download PDF Report
+        <Button variant="outline" size="md" className="dark:border-white/15 dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15" disabled={loading || !report || downloading} onClick={downloadReport}>
+          {downloading ? "Preparing PDF..." : "Download PDF Report"}
         </Button>
       }
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Recurring Revenue (MRR)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">
-              {formatCurrency(584000)}
-            </div>
-            <p className="text-xs text-emerald-600 font-semibold">+14.6% vs previous month</p>
-            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 text-xs text-zinc-500 space-y-1">
-              <div className="flex justify-between">
-                <span>Starter Tier</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(83958)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Growth Tier</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(339932)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Enterprise Tier</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">{formatCurrency(311976)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Maintenance & Dispatch Efficiency</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50">
-              98.2%
-            </div>
-            <p className="text-xs text-emerald-600 font-semibold">Average response time: 42 mins</p>
-            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 text-xs text-zinc-500 space-y-1">
-              <div className="flex justify-between">
-                <span>Total Dispatched</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">312 requests</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Resolved & Closed</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">298 requests</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tenant Satisfaction</span>
-                <span className="font-semibold text-amber-500">4.8 / 5.0 ★</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>System & Database Health</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-3xl font-extrabold text-emerald-500">
-              100%
-            </div>
-            <p className="text-xs text-zinc-500">MongoDB Replica Set & API operational</p>
-            <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 text-xs text-zinc-500 space-y-1">
-              <div className="flex justify-between">
-                <span>API Latency</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">34ms</span>
-              </div>
-              <div className="flex justify-between">
-                <span>SSLCommerz Gateway</span>
-                <span className="font-semibold text-emerald-500">Connected</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Active User Sessions</span>
-                <span className="font-semibold text-zinc-800 dark:text-zinc-200">419 online</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {error && <p role="alert" className="mb-5 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</p>}
+      {loading ? (
+        <p role="status" className="py-12 text-center text-sm text-zinc-500">Loading live platform reports...</p>
+      ) : report && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <MetricCard title="Platform Accounts" value={report.owners} detail={`${report.tenants} tenant accounts`} />
+            <MetricCard title="Property Portfolio" value={report.properties} detail={`${report.units} total units`} />
+            <MetricCard title="Owner Registration Revenue" value={formatCurrency(report.ownerRegistrationRevenue)} detail={`${report.paidOwnerAccounts} paid owner accounts`} />
+          </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <MetricCard title="Maintenance Requests" value={report.maintenanceRequests} detail={`${report.assignedRequests} assigned to a provider`} />
+            <MetricCard title="Completed Work" value={report.completedRequests} detail={report.averageRating === null ? "No completed work has been rated" : `Average rating: ${Number(report.averageRating).toFixed(1)} / 5`} />
+            <MetricCard title="Pending Work & Audits" value={report.pendingRequests} detail={`${report.auditEventsLast30Days} audit events in the last 30 days`} />
+          </div>
+          <p className="text-xs text-zinc-500">
+            Report data refreshed {new Date(report.generatedAt).toLocaleString()}.
+          </p>
+        </div>
+      )}
     </DashboardShell>
   );
 }

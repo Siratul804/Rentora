@@ -121,6 +121,8 @@ rentora/
    ```
    Fill in your MongoDB connection string. Local development uses a clearly labeled simulated owner-activation checkout by default, so SSLCommerz credentials are not required. Set `PAYMENT_MODE=sslcommerz` to use the SSLCommerz sandbox locally; production always uses SSLCommerz and requires valid store credentials.
 
+   Rent reminders run daily at 09:00 UTC through the configured Vercel Cron. Set `CRON_SECRET` in the deployment environment. Optional email delivery requires `RESEND_API_KEY` and `NOTIFICATION_FROM_EMAIL`; optional SMS delivery requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM_NUMBER`. Users must enable each channel in notification preferences.
+
 3. **Run the local development server:**
    ```bash
    pnpm dev

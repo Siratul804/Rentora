@@ -31,7 +31,8 @@ export default function OwnerTenantsPage() {
     unit: "",
     rentAmount: "32000",
     deposit: "64000",
-    leaseEnd: "2027-12-31",
+    leaseStart: "",
+    leaseEnd: "",
     rentStatus: "Pending",
   });
 
@@ -89,7 +90,8 @@ export default function OwnerTenantsPage() {
       unit: defaultUnit,
       rentAmount: "32000",
       deposit: "64000",
-      leaseEnd: "2027-12-31",
+      leaseStart: "",
+      leaseEnd: "",
       rentStatus: "Pending",
     });
     setModalOpen(true);
@@ -109,9 +111,10 @@ export default function OwnerTenantsPage() {
       phone: tenant.phone === "—" ? "" : tenant.phone || "",
       property: tenant.property === "Not Assigned" ? (properties[0]?.name || "") : tenant.property || "",
       unit: tenant.unit === "Not Assigned" ? "" : tenant.unit || "",
-      rentAmount: tenant.rentAmount ? String(tenant.rentAmount) : "32000",
-      deposit: tenant.deposit ? String(tenant.deposit) : "64000",
-      leaseEnd: tenant.leaseEnd === "—" ? "" : tenant.leaseEnd || "2027-12-31",
+      rentAmount: tenant.rentAmount !== undefined ? String(tenant.rentAmount) : "32000",
+      deposit: tenant.deposit !== undefined ? String(tenant.deposit) : "64000",
+      leaseStart: tenant.leaseStart || "",
+      leaseEnd: tenant.leaseEnd === "—" ? "" : tenant.leaseEnd || "",
       rentStatus: tenant.rentStatus || "Pending",
     });
     setModalOpen(true);
@@ -156,12 +159,13 @@ export default function OwnerTenantsPage() {
           unit: formData.unit.trim(),
           rentAmount: Number(formData.rentAmount) || 0,
           deposit: Number(formData.deposit) || 0,
+          leaseStart: formData.leaseStart,
           leaseEnd: formData.leaseEnd,
           rentStatus: formData.rentStatus,
         };
 
-        if (formData.password.trim()) {
-          updatePayload.password = formData.password.trim();
+        if (formData.password) {
+          updatePayload.password = formData.password;
         }
 
         const res = await fetch(`/api/owner/tenants/${editingTenant.id}`, {
@@ -531,7 +535,7 @@ export default function OwnerTenantsPage() {
                 <div className="space-y-1">
                   <Input
                     label={editingTenant ? "Change Password (Optional)" : "Assign Login Password *"}
-                    type="text"
+                    type="password"
                     required={!editingTenant}
                     placeholder={editingTenant ? "Leave blank to keep current password" : "Temporary password"}
                     value={formData.password}
@@ -608,6 +612,12 @@ export default function OwnerTenantsPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Lease Start Date"
+                  type="date"
+                  value={formData.leaseStart}
+                  onChange={(e) => setFormData({ ...formData, leaseStart: e.target.value })}
+                />
                 <Input
                   label="Lease Expiration Date"
                   type="date"

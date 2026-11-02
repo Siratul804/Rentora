@@ -5,9 +5,19 @@ import AuditLog from "@/lib/models/AuditLog";
 import Lease from "@/lib/models/Lease";
 import Notification from "@/lib/models/Notification";
 import User from "@/lib/models/User";
+import { createNotification } from "@/lib/notificationDelivery";
+import { createRentDueReminders } from "@/lib/notificationReminders";
 import { getServerSession } from "@/lib/session";
 
-const ALLOWED_DAYS = [30, 15, 7];
+const REMINDER_DAYS = [1, 3, 7, 14, 30, 60, 90];
+const EVENT_KEYS = [
+  "rentDue",
+  "maintenanceSubmitted",
+  "maintenanceUpdated",
+  "invoiceGenerated",
+  "invoiceSent",
+  "leaseExpiry",
+];
 
 async function getCurrentUser(session) {
   const query = { role: session.role, isActive: { $ne: false } };
@@ -22,61 +32,74 @@ async function getCurrentUser(session) {
 }
 
 function getPreferences(user) {
-  const preferences = user.notificationPreferences?.leaseExpiry;
-  const daysBefore = Array.isArray(preferences?.daysBefore)
-    ? preferences.daysBefore.filter((day) => ALLOWED_DAYS.includes(day))
-    : ALLOWED_DAYS;
-
-  return { daysBefore };
+  const saved = user.notificationPreferences || {};
+  const savedEvents = saved.events || {};
+  const oldLeaseDays = saved.leaseExpiry?.daysBefore;
+  const events = Object.fromEntries(
+    EVENT_KEYS.map((key) => {
+      const event = savedEvents[key] || {};
+      const daysBefore = key === "leaseExpiry"
+        ? oldLeaseDays
+        : event.daysBefore;
+      return [
+        key,
+        {
+          enabled: event.enabled !== false,
+          email: event.email === true,
+          sms: event.sms === true,
+          ...(key === "rentDue" || key === "leaseExpiry"
+            ? {
+                daysBefore: Array.isArray(daysBefore)
+                  ? [...new Set(daysBefore.filter((day) => REMINDER_DAYS.includes(day)))].sort((a, b) => b - a)
+                  : key === "rentDue" ? [7] : [30, 15, 7],
+              }
+            : {}),
+        },
+      ];
+    })
+  );
+  return { events, daysBefore: events.leaseExpiry.daysBefore };
 }
 
-function daysUntil(dateString, today) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString || "")) return null;
-  const expiry = new Date(`${dateString}T00:00:00.000Z`);
-  if (Number.isNaN(expiry.getTime()) || expiry.toISOString().slice(0, 10) !== dateString) return null;
-  return Math.round((expiry.getTime() - today.getTime()) / 86400000);
+function daysUntil(date, today) {
+  const dueDate = new Date(date);
+  if (Number.isNaN(dueDate.getTime())) return null;
+  dueDate.setUTCHours(0, 0, 0, 0);
+  return Math.round((dueDate.getTime() - today.getTime()) / 86400000);
 }
 
-async function createReminder(lease, recipient, role, daysBefore) {
-  try {
-    const notification = await Notification.create({
-      recipientId: recipient._id,
-      tenantId: lease.tenantId || null,
-      ownerId: lease.ownerId,
-      leaseId: lease._id,
-      type: "lease-expiry",
-      title: `Lease expires in ${daysBefore} days`,
-      message: `${lease.tenantName}'s lease at ${lease.propertyName}${lease.unit ? `, ${lease.unit}` : ""} expires on ${lease.endDate}.`,
-      details: {
-        tenantName: lease.tenantName,
-        propertyName: lease.propertyName,
-        unit: lease.unit || "",
-        expiryDate: lease.endDate,
-        renewalOptions:
-          role === "tenant"
-            ? "Contact your property owner to discuss renewal or move-out options."
-            : "Contact the tenant to discuss renewal or move-out options.",
-        daysBefore,
-      },
-      deliveredChannels: ["inApp"],
-    });
+async function createLeaseReminder(lease, recipient, role, daysBefore) {
+  return createNotification({
+    recipient,
+    tenantId: lease.tenantId || null,
+    ownerId: lease.ownerId,
+    leaseId: lease._id,
+    type: "lease-expiry",
+    title: `Lease expires in ${daysBefore} days`,
+    message: `${lease.tenantName}'s lease at ${lease.propertyName}${lease.unit ? `, ${lease.unit}` : ""} expires on ${lease.endDate}.`,
+    details: {
+      tenantName: lease.tenantName,
+      propertyName: lease.propertyName,
+      unit: lease.unit || "",
+      expiryDate: lease.endDate,
+      renewalOptions:
+        role === "tenant"
+          ? "Contact your property owner to discuss renewal or move-out options."
+          : "Contact the tenant to discuss renewal or move-out options.",
+      daysBefore,
+    },
+  });
+}
 
-    await AuditLog.create({
-      action: "lease-expiry-reminder-delivered",
-      leaseId: lease._id,
-      notificationId: notification._id,
-      recipientId: recipient._id,
-      tenantId: lease.tenantId || null,
-      ownerId: lease.ownerId,
-      propertyId: lease.propertyId || null,
-      actorRole: role,
-      status: "in-app-delivered",
-    });
-    return true;
-  } catch (error) {
-    if (error.code === 11000) return false;
-    throw error;
-  }
+function getRecipientQuery(user, role) {
+  return role === "tenant"
+    ? {
+        $or: [
+          { recipientId: user._id },
+          { recipientId: { $exists: false }, tenantId: user._id },
+        ],
+      }
+    : { recipientId: user._id };
 }
 
 export async function GET() {
@@ -95,32 +118,30 @@ export async function GET() {
     const preferences = getPreferences(user);
     const today = new Date();
     today.setUTCHours(0, 0, 0, 0);
-    const leases =
-      session.role === "owner"
+    let createdCount = 0;
+
+    if (preferences.events.leaseExpiry.enabled) {
+      const leases = session.role === "owner"
         ? await Lease.find({ ownerId: user._id, status: "Active" }).lean()
         : await Lease.find({
             $or: [{ tenantId: user._id }, { tenantEmail: user.email }],
             status: "Active",
           }).lean();
 
-    let createdCount = 0;
-    for (const lease of leases) {
-      const remainingDays = daysUntil(lease.endDate, today);
-      if (!preferences.daysBefore.includes(remainingDays)) continue;
-      createdCount += Number(
-        await createReminder(lease, user, session.role, remainingDays)
-      );
+      for (const lease of leases) {
+        const remainingDays = daysUntil(lease.endDate, today);
+        if (!preferences.events.leaseExpiry.daysBefore.includes(remainingDays)) continue;
+        createdCount += Number(
+          Boolean(await createLeaseReminder(lease, user, session.role, remainingDays))
+        );
+      }
     }
 
-    const notificationQuery =
-      session.role === "tenant"
-        ? {
-            $or: [
-              { recipientId: user._id },
-              { recipientId: { $exists: false }, tenantId: user._id },
-            ],
-          }
-        : { recipientId: user._id };
+    if (session.role === "tenant") {
+      createdCount += await createRentDueReminders(user);
+    }
+
+    const notificationQuery = getRecipientQuery(user, session.role);
     const notifications = await Notification.find(notificationQuery)
       .sort({ createdAt: -1 })
       .limit(100)
@@ -139,6 +160,7 @@ export async function GET() {
         ownerId: notification.ownerId?.toString() || null,
         invoiceId: notification.invoiceId?.toString() || null,
         leaseId: notification.leaseId?.toString() || null,
+        maintenanceRequestId: notification.maintenanceRequestId?.toString() || null,
       })),
       preferences,
       unreadCount,
@@ -158,11 +180,25 @@ export async function PUT(request) {
     }
 
     const body = await request.json();
-    if (
-      !Array.isArray(body.daysBefore) ||
-      !body.daysBefore.every((day) => ALLOWED_DAYS.includes(day))
-    ) {
-      return NextResponse.json({ error: "Select valid lease reminder periods." }, { status: 400 });
+    if (!body?.events || typeof body.events !== "object" || Array.isArray(body.events)) {
+      return NextResponse.json({ error: "Notification event preferences are required." }, { status: 400 });
+    }
+
+    const events = {};
+    for (const key of EVENT_KEYS) {
+      const event = body.events[key];
+      if (!event || typeof event.enabled !== "boolean" ||
+          typeof event.email !== "boolean" || typeof event.sms !== "boolean") {
+        return NextResponse.json({ error: "Choose valid event and channel preferences." }, { status: 400 });
+      }
+      events[key] = { enabled: event.enabled, email: event.email, sms: event.sms };
+      if (key === "rentDue" || key === "leaseExpiry") {
+        if (!Array.isArray(event.daysBefore) ||
+            !event.daysBefore.every((day) => REMINDER_DAYS.includes(day))) {
+          return NextResponse.json({ error: "Select valid reminder periods." }, { status: 400 });
+        }
+        events[key].daysBefore = [...new Set(event.daysBefore)].sort((a, b) => b - a);
+      }
     }
 
     await dbConnect();
@@ -172,14 +208,13 @@ export async function PUT(request) {
     }
 
     user.notificationPreferences = {
-      ...user.notificationPreferences?.toObject?.(),
-      leaseExpiry: {
-        daysBefore: [...new Set(body.daysBefore)].sort((a, b) => b - a),
-      },
+      ...user.notificationPreferences,
+      leaseExpiry: { daysBefore: events.leaseExpiry.daysBefore },
+      events,
     };
     await user.save();
 
-    return NextResponse.json({ preferences: getPreferences(user) });
+    return NextResponse.json({ preferences: { events, daysBefore: events.leaseExpiry.daysBefore } });
   } catch (error) {
     console.error("Update notification preferences error:", error);
     return NextResponse.json({ error: "Failed to save notification preferences." }, { status: 500 });
@@ -193,9 +228,9 @@ export async function PATCH(request) {
       return NextResponse.json({ error: "Please sign in to update notifications." }, { status: 401 });
     }
 
-    const { notificationId } = await request.json();
-    if (!mongoose.isValidObjectId(notificationId)) {
-      return NextResponse.json({ error: "A valid notification ID is required." }, { status: 400 });
+    const { notificationId, isRead = true } = await request.json();
+    if (!mongoose.isValidObjectId(notificationId) || typeof isRead !== "boolean") {
+      return NextResponse.json({ error: "A valid notification ID and read status are required." }, { status: 400 });
     }
 
     await dbConnect();
@@ -206,50 +241,32 @@ export async function PATCH(request) {
 
     const notification = await Notification.findOne({
       _id: notificationId,
-      ...(session.role === "tenant"
-        ? {
-            $or: [
-              { recipientId: user._id },
-              { recipientId: { $exists: false }, tenantId: user._id },
-            ],
-          }
-        : { recipientId: user._id }),
+      ...getRecipientQuery(user, session.role),
     });
     if (!notification) {
       return NextResponse.json({ error: "Notification not found." }, { status: 404 });
     }
 
-    if (!notification.readAt) {
-      notification.readAt = new Date();
+    const nextReadAt = isRead ? notification.readAt || new Date() : null;
+    if (String(notification.readAt || "") !== String(nextReadAt || "")) {
+      notification.readAt = nextReadAt;
       await notification.save();
-      if (notification.type === "lease-expiry") {
-        await AuditLog.create({
-          action: "lease-expiry-reminder-read",
-          leaseId: notification.leaseId,
-          notificationId: notification._id,
-          recipientId: user._id,
-          tenantId: notification.tenantId,
-          ownerId: notification.ownerId,
-          actorId: user._id,
-          actorRole: session.role,
-          status: "read",
-        });
-      }
+      await AuditLog.create({
+        action: isRead ? "notification-read" : "notification-unread",
+        notificationId: notification._id,
+        notificationType: notification.type,
+        recipientId: user._id,
+        tenantId: notification.tenantId,
+        ownerId: notification.ownerId,
+        actorId: user._id,
+        actorRole: session.role,
+        status: isRead ? "read" : "unread",
+      });
     }
 
-    const unreadCount = await Notification.countDocuments({
-      ...(session.role === "tenant"
-        ? {
-            $or: [
-              { recipientId: user._id },
-              { recipientId: { $exists: false }, tenantId: user._id },
-            ],
-          }
-        : { recipientId: user._id }),
-      readAt: null,
-    });
-
-    return NextResponse.json({ success: true, unreadCount });
+    const recipientQuery = getRecipientQuery(user, session.role);
+    const unreadCount = await Notification.countDocuments({ ...recipientQuery, readAt: null });
+    return NextResponse.json({ success: true, unreadCount, readAt: notification.readAt });
   } catch (error) {
     console.error("Update notification read status error:", error);
     return NextResponse.json({ error: "Failed to update notification status." }, { status: 500 });

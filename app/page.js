@@ -1,11 +1,23 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import Image from "next/image";
-import { ArrowRight, Building2, Crown, UserRound } from "lucide-react";
+import { ArrowRight, Building2, Check, Crown, UserRound } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Home() {
+  const { user } = useAuth();
+  const portalHref = (portal) => user?.role === portal
+    ? `/${portal}/dashboard`
+    : `/login?portal=${portal}&switch=1`;
+  const accountFeatures = {
+    admin: ["Approve and oversee owner accounts", "Manage subscriptions and service providers", "Review platform-wide operational reports"],
+    owner: ["Manage buildings, units, tenants, and leases", "Track rent invoices and online or cash payments", "Assign and monitor tenant maintenance requests"],
+    tenant: ["Review lease details and rent invoices", "Pay rent online and track payment history", "Request and follow up on property maintenance"],
+  };
   return (
     <div className="home-page min-h-screen flex flex-col bg-transparent text-zinc-100 selection:bg-emerald-500/20 selection:text-emerald-400">
       {/* Top Navbar */}
@@ -74,16 +86,12 @@ export default function Home() {
               <p className="text-xs text-zinc-400 leading-relaxed">
                 Platform governance, landlord subscriptions, service-provider fleet oversight, and system audits.
               </p>
-              <div className="text-[11px] text-zinc-500 space-y-1 pt-2">
-                <div>• /admin/dashboard</div>
-                <div>• /admin/owners</div>
-                <div>• /admin/subscriptions</div>
-                <div>• /admin/service-providers</div>
-                <div>• /admin/reports</div>
+              <div className="space-y-2 pt-2">
+                {accountFeatures.admin.map((feature) => <div key={feature} className="flex items-start gap-2 text-xs text-zinc-400"><Check size={14} className="mt-0.5 shrink-0 text-purple-400" />{feature}</div>)}
               </div>
             </div>
             <div className="pt-6">
-              <Link href="/admin/dashboard" className="block">
+              <Link href={portalHref("admin")} className="block">
                 <Button size="sm" variant="secondary" className="w-full bg-purple-900/50 hover:bg-purple-800 text-purple-200 border-purple-500/30">
                   Launch Admin Portal <ArrowRight aria-hidden="true" size={16} />
                 </Button>
@@ -102,16 +110,12 @@ export default function Home() {
               <p className="text-xs text-zinc-400 leading-relaxed">
                 Buildings, units, tenants, digital leases, automated rent invoices, and technician assignment.
               </p>
-              <div className="text-[11px] text-zinc-500 space-y-1 pt-2">
-                <div>• /owner/dashboard</div>
-                <div>• /owner/properties & /tenants</div>
-                <div>• /owner/leases & /invoices</div>
-                <div>• /owner/payments & /maintenance</div>
-                <div>• /owner/reports</div>
+              <div className="space-y-2 pt-2">
+                {accountFeatures.owner.map((feature) => <div key={feature} className="flex items-start gap-2 text-xs text-zinc-400"><Check size={14} className="mt-0.5 shrink-0 text-emerald-400" />{feature}</div>)}
               </div>
             </div>
             <div className="pt-6">
-              <Link href="/owner/dashboard" className="block">
+              <Link href={portalHref("owner")} className="block">
                 <Button size="sm" variant="primary" className="w-full">
                   Launch Owner Portal <ArrowRight aria-hidden="true" size={16} />
                 </Button>
@@ -130,16 +134,12 @@ export default function Home() {
               <p className="text-xs text-zinc-400 leading-relaxed">
                 View lease terms, pay monthly rent via SSLCommerz, and submit instant maintenance repair requests.
               </p>
-              <div className="text-[11px] text-zinc-500 space-y-1 pt-2">
-                <div>• /tenant/dashboard</div>
-                <div>• /tenant/payments</div>
-                <div>• /tenant/maintenance</div>
-                <div>• /tenant/lease</div>
-                <div>• /tenant/profile</div>
+              <div className="space-y-2 pt-2">
+                {accountFeatures.tenant.map((feature) => <div key={feature} className="flex items-start gap-2 text-xs text-zinc-400"><Check size={14} className="mt-0.5 shrink-0 text-blue-400" />{feature}</div>)}
               </div>
             </div>
             <div className="pt-6">
-              <Link href="/tenant/dashboard" className="block">
+              <Link href={portalHref("tenant")} className="block">
                 <Button size="sm" variant="secondary" className="w-full bg-blue-900/50 hover:bg-blue-800 text-blue-200 border-blue-500/30">
                   Launch Tenant Portal <ArrowRight aria-hidden="true" size={16} />
                 </Button>

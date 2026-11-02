@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
+import Lease from "@/lib/models/Lease";
 import { getServerSession } from "@/lib/session";
 import { ROLES } from "@/lib/auth";
 
@@ -57,6 +58,10 @@ export async function GET(request, { params }) {
         property: tenant.property || "Not Assigned",
         unit: tenant.unit || "Not Assigned",
         rentStatus: tenant.rentStatus || "Pending",
+        rentAmount: Number(tenant.rentAmount || 0),
+        deposit: Number(tenant.deposit || 0),
+        billingCycle: tenant.billingCycle || "1st - 5th Monthly",
+        leaseStart: tenant.leaseStart || "",
         leaseEnd: tenant.leaseEnd || "—",
         isActive: tenant.isActive !== false,
         createdAt: tenant.createdAt,
@@ -106,6 +111,10 @@ async function handleUpdateTenant(request, { params }) {
       unit,
       rentStatus,
       leaseEnd,
+      leaseStart,
+      rentAmount,
+      deposit,
+      billingCycle,
       isActive,
     } = body;
 
@@ -176,6 +185,33 @@ async function handleUpdateTenant(request, { params }) {
       tenant.leaseEnd = leaseEnd.trim();
     }
 
+    if (leaseStart !== undefined) {
+      tenant.leaseStart = leaseStart.trim();
+    }
+
+    if (rentAmount !== undefined) {
+      const parsedRent = Number(rentAmount);
+      if (!Number.isFinite(parsedRent) || parsedRent < 0) {
+        return NextResponse.json({ error: "Monthly rent must be a valid non-negative amount." }, { status: 400 });
+      }
+      tenant.rentAmount = parsedRent;
+    }
+
+    if (deposit !== undefined) {
+      const parsedDeposit = Number(deposit);
+      if (!Number.isFinite(parsedDeposit) || parsedDeposit < 0) {
+        return NextResponse.json({ error: "Security deposit must be a valid non-negative amount." }, { status: 400 });
+      }
+      tenant.deposit = parsedDeposit;
+    }
+
+    if (billingCycle !== undefined) {
+      if (typeof billingCycle !== "string" || !billingCycle.trim()) {
+        return NextResponse.json({ error: "Billing cycle cannot be empty." }, { status: 400 });
+      }
+      tenant.billingCycle = billingCycle.trim();
+    }
+
     if (rentStatus !== undefined) {
       const validStatuses = ["Paid", "Pending", "Overdue"];
       if (validStatuses.includes(rentStatus)) {
@@ -189,17 +225,33 @@ async function handleUpdateTenant(request, { params }) {
     }
 
     // Password reset if provided
-    if (password && password.trim()) {
-      if (password.trim().length < 6) {
+    if (typeof password === "string" && password.length > 0) {
+      if (password.length < 6) {
         return NextResponse.json(
           { error: "New password must be at least 6 characters" },
           { status: 400 }
         );
       }
-      tenant.passwordHash = await bcrypt.hash(password.trim(), 10);
+      tenant.passwordHash = await bcrypt.hash(password, 10);
     }
 
     await tenant.save();
+
+    const linkedLease = await Lease.findOne({
+      ownerId,
+      status: "Active",
+      $or: [{ tenantId: tenant._id }, { tenantEmail: tenant.email }],
+    });
+    if (linkedLease) {
+      if (rentAmount !== undefined) linkedLease.rent = tenant.rentAmount;
+      if (deposit !== undefined) linkedLease.deposit = tenant.deposit;
+      if (billingCycle !== undefined) linkedLease.billingCycle = tenant.billingCycle;
+      if (leaseStart !== undefined) linkedLease.startDate = tenant.leaseStart;
+      if (leaseEnd !== undefined) linkedLease.endDate = tenant.leaseEnd;
+      if ([rentAmount, deposit, billingCycle, leaseStart, leaseEnd].some((value) => value !== undefined)) {
+        await linkedLease.save();
+      }
+    }
 
     const statusMessage =
       typeof isActive === "boolean"
@@ -219,6 +271,10 @@ async function handleUpdateTenant(request, { params }) {
         property: tenant.property || "Not Assigned",
         unit: tenant.unit || "Not Assigned",
         rentStatus: tenant.rentStatus || "Pending",
+        rentAmount: Number(tenant.rentAmount || 0),
+        deposit: Number(tenant.deposit || 0),
+        billingCycle: tenant.billingCycle || "1st - 5th Monthly",
+        leaseStart: tenant.leaseStart || "",
         leaseEnd: tenant.leaseEnd || "—",
         isActive: tenant.isActive !== false,
         createdAt: tenant.createdAt,

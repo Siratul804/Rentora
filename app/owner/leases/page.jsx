@@ -708,11 +708,11 @@ export default function OwnerLeasesPage() {
                     required
                     value={formData.tenantId}
                     onChange={(e) => handleTenantSelect(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-zinc-100 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   >
-                    <option value="">-- Choose an existing tenant --</option>
+                    <option value="" className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">-- Choose an existing tenant --</option>
                     {tenantsList.map((t) => (
-                      <option key={t.id} value={t.id}>
+                      <option key={t.id} value={t.id} className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">
                         {t.name} ({t.email}){t.property && t.property !== "Not Assigned" ? ` — ${t.property}` : ""}{t.unit && t.unit !== "Not Assigned" ? ` (${t.unit})` : ""}
                       </option>
                     ))}

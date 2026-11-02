@@ -6,7 +6,7 @@ import User from "@/lib/models/User";
 import Lease from "@/lib/models/Lease";
 import { Invoice } from "@/lib/models/Invoice";
 import { AuditLog } from "@/lib/models/AuditLog";
-import Notification from "@/lib/models/Notification";
+import { createNotification } from "@/lib/notificationDelivery";
 
 async function getOwnerId() {
   const session = await getServerSession();
@@ -87,7 +87,7 @@ export async function GET(request) {
             isActive: { $ne: false },
             createdBy: owner.ownerId,
             $or: tenantConditions,
-          }).select("name email")
+          }).select("name email phone role notificationPreferences")
         : [];
       const tenantById = new Map(tenants.map((tenant) => [tenant._id.toString(), tenant]));
       const tenantByEmail = new Map(tenants.map((tenant) => [tenant.email.toLowerCase(), tenant]));
@@ -257,8 +257,10 @@ export async function POST(request) {
       const notificationMessage =
         `Your ${billingPeriod} rent invoice for ${lease.propertyName}${lease.unit ? `, ${lease.unit}` : ""} ` +
         `is ready. ${Number(lease.rent).toLocaleString()} is due on ${dueDate}.`;
-      await Notification.create({
+      await createNotification({
+        recipient: tenant,
         tenantId: tenant._id,
+        ownerId: owner.ownerId,
         invoiceId: invoice._id,
         type: "invoice-generated",
         title: "New rent invoice",
@@ -290,7 +292,7 @@ export async function POST(request) {
       );
     }
 
-    const message = `${created.length} invoice${created.length === 1 ? "" : "s"} generated and tenant${created.length === 1 ? "" : "s"} notified.` +
+    const message = `${created.length} rent invoice${created.length === 1 ? "" : "s"} generated.` +
       (duplicates.length ? ` ${duplicates.length} already existed for this month.` : "");
     return NextResponse.json({ message, invoices: created, duplicates }, { status: 201 });
   } catch (error) {
@@ -332,6 +334,12 @@ export async function PATCH(request) {
     const prevStatus = invoice.status;
     invoice.status = status;
     await invoice.save();
+    if (invoice.tenantId) {
+      await User.updateOne(
+        { _id: invoice.tenantId, role: "tenant", createdBy: owner.ownerId },
+        { $set: { rentStatus: status } }
+      );
+    }
 
     await AuditLog.create({
       action: "update-invoice-status",

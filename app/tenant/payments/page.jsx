@@ -20,6 +20,7 @@ export default function TenantPaymentsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState("");
+  const [payingInvoiceId, setPayingInvoiceId] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -56,6 +57,14 @@ export default function TenantPaymentsPage() {
     void loadInvoices();
   }, [loadInvoices]);
 
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("payment");
+    if (result === "success") setMessage("Rent payment completed successfully.");
+    if (result === "failed") setError("Payment could not be verified. Your invoice remains unpaid.");
+    if (result === "cancelled") setMessage("Payment was cancelled. Your invoice remains unpaid.");
+    if (result) window.history.replaceState({}, "", window.location.pathname);
+  }, []);
+
   async function downloadInvoicePdf(invoice) {
     setDownloadingInvoiceId(invoice._id);
     setError("");
@@ -67,6 +76,25 @@ export default function TenantPaymentsPage() {
       setError(err.message || "Failed to download the invoice PDF.");
     } finally {
       setDownloadingInvoiceId("");
+    }
+  }
+
+  async function payInvoice(invoice) {
+    setPayingInvoiceId(invoice._id);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/tenant/payment/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId: invoice._id }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.gatewayUrl) throw new Error(data.error || "Could not start online payment.");
+      window.location.assign(data.gatewayUrl);
+    } catch (paymentError) {
+      setError(paymentError.message || "Could not start online payment.");
+      setPayingInvoiceId("");
     }
   }
 
@@ -90,6 +118,20 @@ export default function TenantPaymentsPage() {
     {
       header: "Payment instructions",
       accessor: (invoice) => invoice.paymentInstructions || "Contact your property owner for payment details.",
+    },
+    {
+      header: "Pay online",
+      accessor: (invoice) => (
+        <Button
+          size="sm"
+          variant="primary"
+          disabled={invoice.status === "Paid" || payingInvoiceId === invoice._id}
+          onClick={() => payInvoice(invoice)}
+          aria-label={`Pay invoice ${invoice._id.slice(-8).toUpperCase()} online`}
+        >
+          {invoice.status === "Paid" ? "Paid" : payingInvoiceId === invoice._id ? "Starting..." : "Pay online"}
+        </Button>
+      ),
     },
     {
       header: "Download",

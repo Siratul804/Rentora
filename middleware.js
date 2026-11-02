@@ -38,6 +38,9 @@ export async function middleware(request) {
 
   // 1. If accessing auth pages (/login, /register)
   if (pathname === "/login" || pathname === "/register") {
+    if (pathname === "/login" && request.nextUrl.searchParams.get("switch") === "1") {
+      return NextResponse.next();
+    }
     if (isAuthenticated && role) {
       // Redirect already logged-in user to their respective dashboard
       const destination = getRoleDashboardPath(role);
