@@ -5,7 +5,7 @@ import { getServerSession } from "@/lib/session";
 import User from "@/lib/models/User";
 import { Invoice } from "@/lib/models/Invoice";
 import { AuditLog } from "@/lib/models/AuditLog";
-import Notification from "@/lib/models/Notification";
+import { createNotification } from "@/lib/notificationDelivery";
 
 export async function POST(_request, context) {
   try {
@@ -45,13 +45,15 @@ export async function POST(_request, context) {
       _id: invoice.tenantId,
       role: "tenant",
       isActive: { $ne: false },
-    }).select("name");
+    }).select("name email phone role notificationPreferences");
     if (!tenant) {
       return NextResponse.json({ error: "The tenant account is no longer active." }, { status: 400 });
     }
 
-    await Notification.create({
+    await createNotification({
+      recipient: tenant,
       tenantId: tenant._id,
+      ownerId: owner._id,
       invoiceId: invoice._id,
       type: "invoice-sent",
       title: "Rent invoice sent",

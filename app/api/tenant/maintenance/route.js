@@ -5,6 +5,7 @@ import Lease from "@/lib/models/Lease";
 import MaintenanceRequest from "@/lib/models/MaintenanceRequest";
 import Property from "@/lib/models/Property";
 import User from "@/lib/models/User";
+import { createNotification } from "@/lib/notificationDelivery";
 import { getServerSession } from "@/lib/session";
 
 const CATEGORIES = ["Plumbing", "Electrical", "HVAC", "Carpentry", "Appliance"];
@@ -127,6 +128,31 @@ export async function POST(request) {
         performedBy: result.tenant._id,
       }],
     });
+
+    const owner = await User.findOne({
+      _id: maintenanceRequest.ownerId,
+      role: "owner",
+      isActive: { $ne: false },
+    });
+    if (owner) {
+      await createNotification({
+        recipient: owner,
+        ownerId: owner._id,
+        tenantId: result.tenant._id,
+        maintenanceRequestId: maintenanceRequest._id,
+        type: "maintenance-submitted",
+        title: "New maintenance request",
+        message: `${result.tenant.name} submitted "${maintenanceRequest.title}" for ${result.lease.propertyName}${result.lease.unit ? `, ${result.lease.unit}` : ""}.`,
+        details: {
+          maintenanceTitle: maintenanceRequest.title,
+          maintenanceStatus: maintenanceRequest.status,
+          category: maintenanceRequest.category,
+          propertyName: result.lease.propertyName,
+          unit: result.lease.unit || "",
+          tenantName: result.tenant.name,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

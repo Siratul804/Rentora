@@ -8,15 +8,18 @@ import { useEffect, useState } from "react";
 import { Bell, Building2, Crown, UserRound } from "lucide-react";
 
 export function Navbar({ portal = "owner", pageTitle = "" }) {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const pathname = usePathname();
   const [unreadCount, setUnreadCount] = useState(0);
   const [toast, setToast] = useState("");
+  const [showAccountInfo, setShowAccountInfo] = useState(false);
 
   useEffect(() => {
-    if (portal === "admin") return undefined;
+    if (portal === "admin" || loading || !user || user.role !== portal) return undefined;
     let active = true;
     let timeout;
+    let hasLoadedNotifications = false;
+    let latestNotificationId = null;
     const handleNotificationUpdate = (event) => {
       if (typeof event.detail?.unreadCount === "number") {
         setUnreadCount(event.detail.unreadCount);
@@ -24,27 +27,43 @@ export function Navbar({ portal = "owner", pageTitle = "" }) {
     };
     window.addEventListener("rentora:notifications-updated", handleNotificationUpdate);
 
-    fetch("/api/notifications", { cache: "no-store" })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Could not load notifications.");
-        if (!active) return;
-        setUnreadCount(data.unreadCount || 0);
-        if (data.createdCount > 0) {
-          setToast(`${data.createdCount} new lease expiry ${data.createdCount === 1 ? "reminder" : "reminders"}.`);
-          timeout = window.setTimeout(() => setToast(""), 6000);
-        }
-      })
-      .catch((error) => {
-        console.error("Load notification badge error:", error);
-      });
+    const refreshNotifications = () => {
+      fetch("/api/notifications", { cache: "no-store" })
+        .then(async (response) => {
+          const data = await response.json();
+          if (response.status === 401) return;
+          if (!response.ok) throw new Error(data.error || "Could not load notifications.");
+          if (!active) return;
+          setUnreadCount(data.unreadCount || 0);
+          const nextNotificationId = data.notifications?.[0]?._id || null;
+          const receivedNewNotification =
+            hasLoadedNotifications && nextNotificationId !== latestNotificationId;
+          hasLoadedNotifications = true;
+          latestNotificationId = nextNotificationId;
+          if (data.createdCount > 0) {
+            setToast(`${data.createdCount} new notification${data.createdCount === 1 ? "" : "s"}.`);
+            window.clearTimeout(timeout);
+            timeout = window.setTimeout(() => setToast(""), 6000);
+          } else if (receivedNewNotification) {
+            setToast("You have a new notification.");
+            window.clearTimeout(timeout);
+            timeout = window.setTimeout(() => setToast(""), 6000);
+          }
+        })
+        .catch((error) => {
+          console.error("Load notification badge error:", error);
+        });
+    };
+    refreshNotifications();
+    const interval = window.setInterval(refreshNotifications, 60000);
 
     return () => {
       active = false;
       window.clearTimeout(timeout);
+      window.clearInterval(interval);
       window.removeEventListener("rentora:notifications-updated", handleNotificationUpdate);
     };
-  }, [pathname, portal]);
+  }, [pathname, portal, loading, user?.id, user?.role]);
 
   const notificationsHref = portal === "tenant" ? "/tenant/notifications" : "/owner/notifications";
 
@@ -81,26 +100,42 @@ export function Navbar({ portal = "owner", pageTitle = "" }) {
         )}
 
         {/* User Card */}
-        <div className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-zinc-800 sm:gap-3">
-          <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-base">
-            {user?.avatar || (
-              user?.role === "admin" ? (
+        <div className="relative flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-zinc-800 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => setShowAccountInfo((visible) => !visible)}
+            aria-label="Show personal information"
+            aria-expanded={showAccountInfo}
+            className="flex items-center gap-2 rounded-xl text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/70 sm:gap-3"
+          >
+            <div className="w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-base">
+              {user?.role === "admin" ? (
                 <Crown aria-hidden="true" size={18} strokeWidth={1.8} />
               ) : user?.role === "owner" ? (
                 <Building2 aria-hidden="true" size={18} strokeWidth={1.8} />
               ) : (
                 <UserRound aria-hidden="true" size={18} strokeWidth={1.8} />
-              )
-            )}
-          </div>
-          <div className="hidden sm:block text-left">
-            <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-              {user?.name || "Active User"}
+              )}
             </div>
-            <div className="text-[11px] text-zinc-400 dark:text-zinc-500">
-              {getRoleBadge()}
+            <div className="hidden sm:block text-left">
+              <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                {user?.name || "Active User"}
+              </div>
+              <div className="text-[11px] text-zinc-400 dark:text-zinc-500">
+                {getRoleBadge()}
+              </div>
             </div>
-          </div>
+          </button>
+          {showAccountInfo && (
+            <div className="absolute right-0 top-12 z-40 w-64 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-zinc-700 dark:bg-zinc-900">
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{user?.name || "Active User"}</p>
+              <dl className="mt-3 space-y-2 text-xs">
+                <div><dt className="text-zinc-500">Email</dt><dd className="break-all text-zinc-800 dark:text-zinc-200">{user?.email || "—"}</dd></div>
+                <div><dt className="text-zinc-500">Phone</dt><dd className="text-zinc-800 dark:text-zinc-200">{user?.phone || "—"}</dd></div>
+                <div><dt className="text-zinc-500">Account type</dt><dd className="capitalize text-zinc-800 dark:text-zinc-200">{user?.role || portal}</dd></div>
+              </dl>
+            </div>
+          )}
 
           <button
             type="button"

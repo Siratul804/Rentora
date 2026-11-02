@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
+import Lease from "@/lib/models/Lease";
 import { getServerSession } from "@/lib/session";
 import { ROLES } from "@/lib/auth";
 
@@ -44,21 +45,34 @@ export async function GET() {
     const tenants = await User.find(query, { passwordHash: 0 })
       .sort({ createdAt: -1 })
       .lean();
+    const leases = await Lease.find({ ownerId, status: "Active" })
+      .select("tenantId tenantEmail startDate endDate rent deposit billingCycle")
+      .lean();
 
     return NextResponse.json({
       success: true,
-      tenants: tenants.map((t) => ({
-        id: t._id.toString(),
-        name: t.name,
-        email: t.email,
-        phone: t.phone || "—",
-        property: t.property || "Not Assigned",
-        unit: t.unit || "Not Assigned",
-        rentStatus: t.rentStatus || "Pending",
-        leaseEnd: t.leaseEnd || "—",
-        isActive: t.isActive !== false,
-        createdAt: t.createdAt,
-      })),
+      tenants: tenants.map((t) => {
+        const lease = leases.find((item) =>
+          item.tenantId?.toString() === t._id.toString() ||
+          item.tenantEmail?.toLowerCase() === t.email.toLowerCase()
+        );
+        return {
+          id: t._id.toString(),
+          name: t.name,
+          email: t.email,
+          phone: t.phone || "—",
+          property: t.property || "Not Assigned",
+          unit: t.unit || "Not Assigned",
+          rentStatus: t.rentStatus || "Pending",
+          rentAmount: Number(lease?.rent ?? t.rentAmount ?? 0),
+          deposit: Number(lease?.deposit ?? t.deposit ?? 0),
+          billingCycle: lease?.billingCycle || t.billingCycle || "1st - 5th Monthly",
+          leaseStart: lease?.startDate || t.leaseStart || "",
+          leaseEnd: lease?.endDate || t.leaseEnd || "—",
+          isActive: t.isActive !== false,
+          createdAt: t.createdAt,
+        };
+      }),
     });
   } catch (error) {
     console.error("Fetch tenants error:", error);
@@ -81,7 +95,10 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { name, email, password, phone, property, unit, rentStatus, leaseEnd } = body;
+    const {
+      name, email, password, phone, property, unit, rentStatus, rentAmount,
+      deposit, billingCycle, leaseStart, leaseEnd,
+    } = body;
 
     // Validation
     if (!name || !email || !password) {
@@ -96,6 +113,12 @@ export async function POST(request) {
         { error: "Temporary password must be at least 6 characters" },
         { status: 400 }
       );
+    }
+    const parsedRent = Number(rentAmount);
+    const parsedDeposit = Number(deposit);
+    if (!Number.isFinite(parsedRent) || parsedRent < 0 ||
+        !Number.isFinite(parsedDeposit) || parsedDeposit < 0) {
+      return NextResponse.json({ error: "Rent and security deposit must be valid non-negative amounts." }, { status: 400 });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -138,6 +161,12 @@ export async function POST(request) {
       property: property ? property.trim() : "Main Property",
       unit: unit ? unit.trim() : "General Unit",
       rentStatus: rentStatus || "Pending",
+      rentAmount: parsedRent,
+      deposit: parsedDeposit,
+      billingCycle: typeof billingCycle === "string" && billingCycle.trim()
+        ? billingCycle.trim()
+        : "1st - 5th Monthly",
+      leaseStart: typeof leaseStart === "string" ? leaseStart.trim() : "",
       leaseEnd: leaseEnd ? leaseEnd.trim() : "",
       createdBy: ownerId,
     });
@@ -154,6 +183,10 @@ export async function POST(request) {
           property: newTenant.property,
           unit: newTenant.unit,
           rentStatus: newTenant.rentStatus,
+          rentAmount: newTenant.rentAmount,
+          deposit: newTenant.deposit,
+          billingCycle: newTenant.billingCycle,
+          leaseStart: newTenant.leaseStart,
           leaseEnd: newTenant.leaseEnd,
           isActive: newTenant.isActive !== false,
           createdAt: newTenant.createdAt,

@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
+import { Banknote, CreditCard, House, UsersRound, Wrench } from "lucide-react";
 
 const glassCard =
   "bg-white/60 dark:bg-zinc-900/50 backdrop-blur-xl border border-white/50 dark:border-white/10 shadow-lg shadow-zinc-900/5 dark:shadow-black/10 transition-all duration-300 hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-500/30";
@@ -49,7 +50,7 @@ export default function OwnerDashboardPage() {
         const periodInvoices = invoices.filter((invoice) => invoice.billingPeriod === currentPeriod);
         const paidInvoices = periodInvoices.filter((invoice) => invoice.status === "Paid").length;
         const openMaintenance = maintenance.filter(
-          (item) => !["Resolved", "Closed"].includes(item.status)
+          (item) => !["Done", "Resolved", "Closed"].includes(item.status)
         );
 
         setDashboard({
@@ -93,10 +94,10 @@ export default function OwnerDashboardPage() {
   const ownerName = user?.name || "Landlord";
   const stats = dashboard
     ? [
-        { label: "Active Lease Rent", value: formatCurrency(dashboard.rent), change: dashboard.collection, icon: "💰" },
-        { label: "Properties", value: dashboard.properties, change: "In your portfolio", icon: "🏠" },
-        { label: "Active Leases", value: dashboard.activeLeases, change: "Current leases", icon: "👥" },
-        { label: "Open Maintenance", value: dashboard.openMaintenanceCount, change: "Unresolved requests", icon: "🛠️" },
+        { label: "Active Lease Rent", value: formatCurrency(dashboard.rent), change: dashboard.collection, icon: Banknote },
+        { label: "Properties", value: dashboard.properties, change: "In your portfolio", icon: House },
+        { label: "Active Leases", value: dashboard.activeLeases, change: "Current leases", icon: UsersRound },
+        { label: "Open Maintenance", value: dashboard.openMaintenanceCount, change: "Unresolved requests", icon: Wrench },
       ]
     : [];
 
@@ -107,7 +108,7 @@ export default function OwnerDashboardPage() {
       subtitle={`Welcome back, ${ownerName}. Here is your portfolio performance summary.`}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/owner/bills"><Button variant="outline" size="sm">💳 My Bills</Button></Link>
+          <Link href="/owner/bills"><Button variant="outline" size="sm"><CreditCard size={16} aria-hidden="true" /> My Bills</Button></Link>
           <Link href="/owner/invoices"><Button variant="outline" size="sm">Generate Invoices</Button></Link>
           <Link href="/provider-job-history"><Button variant="outline" size="sm">Provider Job History</Button></Link>
           <Link href="/owner/properties"><Button variant="primary" size="sm">+ Add Property</Button></Link>
@@ -117,7 +118,7 @@ export default function OwnerDashboardPage() {
       <div className="space-y-6">
         <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-lg shrink-0">💳</div>
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0"><CreditCard size={18} aria-hidden="true" /></div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
@@ -144,7 +145,7 @@ export default function OwnerDashboardPage() {
                 <Card key={stat.label} className={`${glassCard} hover:-translate-y-1`}>
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl">{stat.icon}</span>
+                      <stat.icon className="text-zinc-500 dark:text-zinc-300" size={24} aria-hidden="true" />
                       <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/10 px-2 py-0.5 rounded-full">{stat.change}</span>
                     </div>
                     <div className="mt-3">
@@ -200,13 +201,13 @@ export default function OwnerDashboardPage() {
                     <div key={item.id} className="p-3.5 rounded-xl border border-white/60 dark:border-white/10 bg-white/30 dark:bg-zinc-950/30 shadow-sm text-xs space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold text-zinc-900 dark:text-zinc-100">{item.title}</span>
-                        <Badge variant={["Resolved", "Closed"].includes(item.status) ? "success" : "warning"} size="sm">{item.status}</Badge>
+                        <Badge variant={["Done", "Resolved", "Closed"].includes(item.status) ? "success" : "warning"} size="sm">{item.status}</Badge>
                       </div>
                       <div className="flex items-center justify-between text-zinc-500">
                         <span>{[item.property, item.unit].filter(Boolean).join(" · ") || "Property not assigned"}</span>
                         <span className="text-[11px]">{item.priority} Priority</span>
                       </div>
-                      <div className="text-[11px] text-zinc-400 border-t border-white/50 dark:border-zinc-700/50 pt-1.5">Provider: <strong>{item.assignedTo || "Unassigned"}</strong></div>
+                      <div className="text-[11px] text-zinc-400 border-t border-white/50 dark:border-zinc-700/50 pt-1.5">Assignment: <strong>{item.status === "Assigned" ? "Assigned" : item.assignedTo || "Unassigned"}</strong></div>
                     </div>
                   ))}
                   {dashboard.maintenance.length === 0 && <p className="py-6 text-center text-sm text-zinc-500">No open maintenance requests.</p>}

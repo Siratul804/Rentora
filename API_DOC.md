@@ -45,6 +45,7 @@ Complete API documentation for all endpoints implemented in `app/api`.
 | | `/api/tenant/maintenance` | `GET`, `POST` | Tenant |
 | **Invoices** | `/api/invoices/[invoiceId]/pdf` | `GET` | Owner / Tenant |
 | **Notifications** | `/api/notifications` | `GET`, `PUT`, `PATCH` | Owner / Tenant |
+| | `/api/notifications/cron` | `GET` | Scheduled (`CRON_SECRET`) |
 | **Job History** | `/api/provider-job-history` | `GET` | Owner / Admin |
 | **Payment (SSLCOMMERZ)**| `/api/payment/initiate` | `POST` | Public / Owner |
 | | `/api/payment/success` | `POST`, `GET` | Gateway callback |
@@ -889,10 +890,10 @@ Generates and serves a formatted PDF document of an invoice.
 
 ---
 
-## 10. Notifications & Lease Expiry Reminders
+## 10. Notifications & Reminders
 
 ### `GET /api/notifications`
-Checks for upcoming lease expirations (30, 15, 7 days), creates reminders, and returns all in-app notifications with unread counts.
+Returns the user's recent in-app notifications, unread count, and event/channel preferences. Tenant rent reminders and lease-expiry reminders are created when their configured lead time is reached.
 
 - **Authentication:** Required (`owner` or `tenant`)
 - **Responses:**
@@ -905,53 +906,65 @@ Checks for upcoming lease expirations (30, 15, 7 days), creates reminders, and r
           "id": "string",
           "title": "Lease expires in 15 days",
           "message": "...",
-          "type": "lease-expiry | invoice",
+          "type": "rent-due | maintenance-submitted | maintenance-updated | lease-expiry | invoice-generated | invoice-sent",
           "readAt": "ISO date string or null",
           "createdAt": "ISO date string",
           "details": { ... }
         }
       ],
       "unreadCount": 3,
-      "preferences": {
-        "leaseExpiry": { "daysBefore": [30, 15, 7] }
-      }
+      "preferences": { "events": { "...": "event enablement, lead times, email and SMS choices" } }
     }
     ```
 
 ---
 
 ### `PUT /api/notifications`
-Updates lease reminder timing preferences for the user.
+Updates event and channel preferences. In-app delivery is always enabled for enabled events; email and SMS are preference-gated.
 
 - **Authentication:** Required (`owner` or `tenant`)
 - **Request Body (JSON):**
   ```json
   {
-    "preferences": {
-      "leaseExpiry": {
-        "daysBefore": [30, 15, 7]
-      }
+    "events": {
+      "rentDue": { "enabled": true, "daysBefore": [7], "email": false, "sms": false },
+      "maintenanceSubmitted": { "enabled": true, "email": false, "sms": false },
+      "maintenanceUpdated": { "enabled": true, "email": false, "sms": false },
+      "invoiceGenerated": { "enabled": true, "email": false, "sms": false },
+      "invoiceSent": { "enabled": true, "email": false, "sms": false },
+      "leaseExpiry": { "enabled": true, "daysBefore": [30, 15, 7], "email": false, "sms": false }
     }
   }
   ```
 - **Responses:**
-  - `200 OK`: `{ "success": true, "preferences": { ... } }`
+  - `200 OK`: `{ "preferences": { "events": { ... } } }`
 
 ---
 
 ### `PATCH /api/notifications`
-Marks a notification as read.
+Marks a notification as read or unread. `isRead` defaults to `true`.
 
 - **Authentication:** Required (`owner` or `tenant`)
 - **Request Body (JSON):**
   ```json
   {
-    "notificationId": "string (required, ObjectId)"
+    "notificationId": "string (required, ObjectId)",
+    "isRead": true
   }
   ```
 - **Responses:**
   - `200 OK`: `{ "success": true, "unreadCount": 2 }`
   - `404 Not Found`: Notification not found.
+
+---
+
+### `GET /api/notifications/cron`
+Creates due-soon rent reminders for all active tenants. Vercel invokes this endpoint daily at 09:00 UTC; scheduled requests must provide `Authorization: Bearer <CRON_SECRET>`.
+
+- **Authentication:** `CRON_SECRET`
+- **Responses:** `{ "success": true, "createdCount": 3 }`
+
+Delivery attempts and read/unread changes are written to the audit log.
 
 ---
 
@@ -1162,3 +1175,31 @@ Verifies MongoDB connectivity, active database name, and user collection counts.
     }
     ```
   - `500 Internal Server Error`: Database connection failure.
+
+## 15. Tenant Leases, Payments & Live Admin Reports
+
+### `GET /api/tenant/lease`
+Returns the signed-in tenant's latest lease details, using an active lease when one exists and tenant onboarding values as a fallback.
+
+- **Authentication:** Tenant session
+- **Response:** `{ "lease": { "id", "status", "startDate", "endDate", "rent", "deposit", "billingCycle", "terms", "propertyName", "unit", "owner", "propertyAddress" } }`
+
+### `POST /api/tenant/payment/initiate`
+Starts an SSLCOMMERZ sandbox checkout for a pending or overdue rent invoice owned by the signed-in tenant.
+
+- **Authentication:** Tenant session
+- **Request:** `{ "invoiceId": "<rent invoice id>" }`
+- **Response:** `{ "success": true, "gatewayUrl": "<checkout URL>" }`
+- Uses `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD`. This tenant flow uses separate callback routes and does not change owner activation payments.
+
+### `POST /api/tenant/payment/success` and `POST /api/tenant/payment/fail`
+SSLCOMMERZ callbacks for tenant rent checkout. The success callback validates the transaction server-to-server and verifies the invoice, tenant, amount, and transaction ID before marking it paid.
+
+### `GET /api/admin/reports` and `POST /api/admin/reports`
+Returns live platform metrics for administrators; the POST response downloads a PDF report.
+
+- **Authentication:** Admin session
+- **GET response:** `{ "report": { "owners", "tenants", "properties", "units", "paidOwnerAccounts", "ownerRegistrationRevenue", "maintenanceRequests", "completedRequests", "pendingRequests", "assignedRequests", "averageRating", "auditEventsLast30Days", "generatedAt" } }`
+- **POST response:** `application/pdf`
+
+`GET /api/provider-job-history?includeAll=true` is available to admins to view all maintenance assignments and statuses. Without this query parameter, admin dashboard results remain limited to completed provider work; owners continue to see their own completed work.

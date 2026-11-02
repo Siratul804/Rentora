@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
@@ -15,6 +16,8 @@ import {
   FileText,
   Hammer,
   House,
+  PanelLeftClose,
+  PanelLeftOpen,
   Receipt,
   UserRound,
   UsersRound,
@@ -76,36 +79,62 @@ export function Sidebar({ portal = "owner" }) {
   const pathname = usePathname();
   const navItems = PORTAL_NAV_ITEMS[portal] || [];
   const meta = PORTAL_META[portal] || PORTAL_META.owner;
+  const [collapsed, setCollapsed] = useState(false);
+  const widthClass = collapsed ? "w-16" : "w-16 sm:w-64";
 
   return (
-    <aside className="w-16 sm:w-64 shrink-0 border-r border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md flex flex-col justify-between min-h-screen sticky top-0">
+    <aside className={`${widthClass} h-screen shrink-0 border-r border-zinc-200/80 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md flex flex-col justify-between sticky top-0 overflow-y-auto`}>
       <div>
         {/* Brand Header */}
-        <div className="p-3 sm:p-5 border-b border-zinc-200/80 dark:border-zinc-800/80">
-          <Link href="/" aria-label="Rentora home" className="flex items-center justify-center sm:justify-start gap-2.5 group">
-            <Image
-              src="/rentora_logo.png"
-              alt="Rentora"
-              width={38}
-              height={40}
-              className="h-10 w-auto rounded-2xl transition-transform group-hover:scale-105"
-            />
-            <div className="hidden sm:block">
-              <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-zinc-100">
-                Rentora
-              </span>
-              <span className="block text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
-                {meta.title}
-              </span>
-            </div>
-          </Link>
+        <div className={`p-3 ${collapsed ? "" : "sm:p-5"} border-b border-zinc-200/80 dark:border-zinc-800/80`}>
+          <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between"} gap-2`}>
+            <Link href="/" aria-label="Rentora home" className="flex min-w-0 items-center justify-center gap-2.5 group">
+              <Image
+                src="/rentora_logo.png"
+                alt="Rentora"
+                width={38}
+                height={40}
+                className="h-10 w-auto shrink-0 rounded-2xl transition-transform group-hover:scale-105"
+              />
+              {!collapsed && (
+                <div className="hidden min-w-0 sm:block">
+                  <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-zinc-100">
+                    Rentora
+                  </span>
+                  <span className="block text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+                    {meta.title}
+                  </span>
+                </div>
+              )}
+            </Link>
+            <button
+              type="button"
+              onClick={() => setCollapsed((value) => !value)}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 sm:flex"
+            >
+              {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
+            {collapsed && (
+              <button
+                type="button"
+                onClick={() => setCollapsed(false)}
+                aria-label="Expand sidebar"
+                title="Expand sidebar"
+                className="absolute left-9 top-4 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-zinc-500 shadow dark:bg-zinc-900 dark:text-zinc-400 sm:hidden"
+              >
+                <PanelLeftOpen size={17} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Navigation Links */}
-        <nav className="p-2 sm:p-3 space-y-1">
-          <div className="hidden sm:block px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+        <nav className={`p-2 ${collapsed ? "" : "sm:p-3"} space-y-1`}>
+          {!collapsed && <div className="hidden px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 sm:block">
             Navigation
-          </div>
+          </div>}
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
@@ -114,16 +143,16 @@ export function Sidebar({ portal = "owner" }) {
                 href={item.href}
                 aria-label={item.label}
                 className={cn(
-                  "flex items-center justify-center sm:justify-start gap-0 sm:gap-3 px-2 sm:px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150",
+                  `flex items-center ${collapsed ? "justify-center" : "justify-center sm:justify-start"} gap-0 ${collapsed ? "" : "sm:gap-3"} px-2 ${collapsed ? "" : "sm:px-3.5"} py-2.5 rounded-xl text-sm font-medium transition-all duration-150`,
                   isActive
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
                     : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-zinc-200"
                 )}
               >
                 <item.icon aria-hidden="true" size={18} strokeWidth={1.8} className="shrink-0" />
-                <span className="hidden sm:inline">{item.label}</span>
+                {!collapsed && <span className="hidden sm:inline">{item.label}</span>}
                 {isActive && (
-                  <span className="hidden sm:block ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  !collapsed && <span className="hidden sm:block ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 )}
               </Link>
             );
@@ -132,7 +161,7 @@ export function Sidebar({ portal = "owner" }) {
       </div>
 
       {/* RBAC Role Indicator & Footer */}
-      <div className="hidden sm:block p-4 border-t border-zinc-200/80 dark:border-zinc-800/80 space-y-2">
+      {!collapsed && <div className="hidden sm:block p-4 border-t border-zinc-200/80 dark:border-zinc-800/80 space-y-2">
         <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-1">
           <span>Access Level</span>
           <span className="text-[10px] text-emerald-500 font-bold">RBAC ACTIVE</span>
@@ -152,7 +181,7 @@ export function Sidebar({ portal = "owner" }) {
             {meta.badge}
           </span>
         </div>
-      </div>
+      </div>}
     </aside>
   );
 }

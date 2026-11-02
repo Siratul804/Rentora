@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/tables/DataTable";
+import { Building2, CreditCard, House, Wrench } from "lucide-react";
 
 async function fetchData(url) {
   const response = await fetch(url);
@@ -44,10 +45,10 @@ export default function AdminDashboardPage() {
   }, []);
 
   const stats = useMemo(() => [
-    { id: "owners", label: "Registered Owners", value: owners.length, icon: "🏢" },
-    { id: "paid", label: "Paid Owner Accounts", value: owners.filter((owner) => owner.paymentStatus === "Paid").length, icon: "💳" },
-    { id: "properties", label: "Listed Properties", value: owners.reduce((total, owner) => total + (Number(owner.properties) || 0), 0), icon: "🏠" },
-    { id: "jobs", label: "Completed Provider Jobs", value: jobs.length, icon: "🛠️" },
+    { id: "owners", label: "Registered Owners", value: owners.length, icon: Building2 },
+    { id: "paid", label: "Paid Owner Accounts", value: owners.filter((owner) => owner.paymentStatus === "Paid").length, icon: CreditCard },
+    { id: "properties", label: "Listed Properties", value: owners.reduce((total, owner) => total + (Number(owner.properties) || 0), 0), icon: House },
+    { id: "jobs", label: "Completed Provider Jobs", value: jobs.length, icon: Wrench },
   ], [owners, jobs]);
 
   const columns = [
@@ -97,7 +98,7 @@ export default function AdminDashboardPage() {
       subtitle="Current owner accounts, portfolio records, and completed provider work"
       actions={
         <div className="flex items-center gap-2">
-          <Link href="/admin/owners"><Button variant="outline" size="sm">All Owners</Button></Link>
+          <Link href="/admin/owners"><Button variant="outline" size="sm" className="dark:border-white/15 dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15">All Owners</Button></Link>
           <Link href="/admin/subscriptions"><Button variant="primary" size="sm">Billing &amp; Plans</Button></Link>
         </div>
       }
@@ -113,7 +114,7 @@ export default function AdminDashboardPage() {
                 <Card key={stat.id}>
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xl">{stat.icon}</div>
+                      <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center"><stat.icon aria-hidden="true" size={20} className="text-zinc-600 dark:text-zinc-300" /></div>
                     </div>
                     <div className="mt-4">
                       <div className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{stat.value}</div>

@@ -6,6 +6,7 @@ import MaintenanceRequest from "@/lib/models/MaintenanceRequest";
 import User from "@/lib/models/User";
 import { getServerSession } from "@/lib/session";
 import { ROLES } from "@/lib/auth";
+import { createNotification } from "@/lib/notificationDelivery";
 
 export async function GET() {
   try {
@@ -87,8 +88,10 @@ export async function PATCH(request) {
 
     const allowedStatuses = [
       "Pending",
+      "Assigned",
       "Dispatched",
       "In Progress",
+      "Done",
       "Resolved",
       "Closed",
     ];
@@ -157,7 +160,7 @@ export async function PATCH(request) {
     ) {
       maintenanceRequest.status = status;
       maintenanceRequest.completedAt =
-        status === "Resolved" || status === "Closed" ? new Date() : null;
+        ["Done", "Resolved", "Closed"].includes(status) ? new Date() : null;
 
       changes.push({
         action: "Status updated",
@@ -172,6 +175,54 @@ export async function PATCH(request) {
     if (changes.length > 0) {
       maintenanceRequest.activityHistory.push(...changes);
       await maintenanceRequest.save();
+
+      const owner = await User.findOne({
+        _id: maintenanceRequest.ownerId,
+        role: ROLES.OWNER,
+        isActive: { $ne: false },
+      });
+      if (owner) {
+        await createNotification({
+          recipient: owner,
+          ownerId: owner._id,
+          tenantId: maintenanceRequest.tenantId,
+          maintenanceRequestId: maintenanceRequest._id,
+          type: "maintenance-updated",
+          title: "Maintenance request updated",
+          message: `"${maintenanceRequest.title}" is now ${maintenanceRequest.status}${maintenanceRequest.assignedTo !== "Unassigned" ? ` and assigned to ${maintenanceRequest.assignedTo}` : ""}.`,
+          details: {
+            maintenanceTitle: maintenanceRequest.title,
+            maintenanceStatus: maintenanceRequest.status,
+            category: maintenanceRequest.category,
+            unit: maintenanceRequest.unit || "",
+          },
+        });
+      }
+
+      if (maintenanceRequest.tenantId) {
+        const tenant = await User.findOne({
+          _id: maintenanceRequest.tenantId,
+          role: "tenant",
+          isActive: { $ne: false },
+        });
+        if (tenant) {
+          await createNotification({
+            recipient: tenant,
+            ownerId: owner?._id || maintenanceRequest.ownerId,
+            tenantId: tenant._id,
+            maintenanceRequestId: maintenanceRequest._id,
+            type: "maintenance-updated",
+            title: "Maintenance request updated",
+            message: `"${maintenanceRequest.title}" is now ${maintenanceRequest.status}${maintenanceRequest.assignedTo !== "Unassigned" ? ` and assigned to ${maintenanceRequest.assignedTo}` : ""}.`,
+            details: {
+              maintenanceTitle: maintenanceRequest.title,
+              maintenanceStatus: maintenanceRequest.status,
+              category: maintenanceRequest.category,
+              unit: maintenanceRequest.unit || "",
+            },
+          });
+        }
+      }
     }
 
     return NextResponse.json({

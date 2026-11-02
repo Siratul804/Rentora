@@ -174,11 +174,6 @@ export default function AdminOwnersPage() {
       portal="admin"
       title="Property Owners Directory"
       subtitle="Manage registered landlords, oversee property portfolios, and verify accounts"
-      actions={
-        <Button variant="primary" size="md">
-          + Add New Owner
-        </Button>
-      }
     >
       <Card>
         <CardHeader>

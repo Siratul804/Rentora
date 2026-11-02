@@ -23,7 +23,7 @@ const mapMaintenanceRequest = (item) => ({
   })),
 });
 
-const STATUSES = ["Pending", "Dispatched", "In Progress", "Resolved", "Closed"];
+const STATUSES = ["Pending", "Assigned", "Dispatched", "In Progress", "Done", "Resolved", "Closed"];
 
 const PRIORITY_VARIANTS = {
   High: "danger",
@@ -33,7 +33,9 @@ const PRIORITY_VARIANTS = {
 
 const STATUS_VARIANTS = {
   Pending: "warning",
+  Assigned: "info",
   Dispatched: "info",
+  Done: "success",
   Resolved: "success",
 };
 
@@ -51,34 +53,11 @@ const formatDate = (value) => {
   }).format(date);
 };
 
-/* Glassmorphism styles */
-const BLUR = "blur(18px) saturate(160%)";
-
-const glassPanel = {
-  background: "rgba(24, 24, 27, 0.72)",
-  backdropFilter: BLUR,
-  WebkitBackdropFilter: BLUR,
-  border: "1px solid rgba(255, 255, 255, 0.10)",
-  boxShadow: "0 12px 40px rgba(0, 0, 0, 0.24)",
-};
-
-const glassField = {
-  background: "rgba(24, 24, 27, 0.92)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-  border: "1px solid rgba(255, 255, 255, 0.14)",
-  color: "#f4f4f5",
-};
-
 const glassSelect =
-  "w-full min-w-[9rem] rounded-xl px-3 py-2 text-sm " +
+  "w-full min-w-[9rem] rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 " +
+  "dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 " +
   "transition focus:border-emerald-500 focus:outline-none " +
   "focus:ring-2 focus:ring-emerald-500/40";
-
-const optionStyle = {
-  backgroundColor: "#18181b",
-  color: "#f4f4f5",
-};
 
 const glowStyle = (size, color) => ({
   position: "absolute",
@@ -96,10 +75,7 @@ export default function MaintenancePage() {
   const [activeTicketId, setActiveTicketId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const providerOptions = [
-    "Unassigned",
-    ...new Set(tickets.map((ticket) => ticket.assignedTo).filter((provider) => provider && provider !== "Unassigned")),
-  ];
+  const [success, setSuccess] = useState("");
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -133,6 +109,7 @@ export default function MaintenancePage() {
 
   const updateTicket = async (id, patch) => {
     setError("");
+    setSuccess("");
     try {
       const response = await fetch("/api/owner/maintenance", {
         method: "PATCH",
@@ -142,20 +119,15 @@ export default function MaintenancePage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to update maintenance request.");
       await loadTickets();
+      setSuccess("Maintenance request updated.");
     } catch (updateError) {
       setError(updateError.message || "Failed to update maintenance request.");
     }
   };
 
-  const handleAssign = (ticket, provider) => {
-    if (provider === ticket.assignedTo) return;
-
-    const nextStatus =
-      provider !== "Unassigned" && ticket.status === "Pending"
-        ? "Dispatched"
-        : ticket.status;
-
-    updateTicket(ticket.id, { assignedTo: provider, status: nextStatus });
+  const handleAssign = (ticket) => {
+    if (ticket.status === "Assigned") return;
+    updateTicket(ticket.id, { status: "Assigned" });
   };
 
   const handleStatus = (ticket, status) => {
@@ -169,14 +141,14 @@ export default function MaintenancePage() {
   const counts = {
     total: tickets.length,
     pending: tickets.filter((t) => t.status === "Pending").length,
-    dispatched: tickets.filter((t) => t.status === "Dispatched").length,
-    resolved: tickets.filter((t) => t.status === "Resolved").length,
+    assigned: tickets.filter((t) => ["Assigned", "Dispatched", "In Progress"].includes(t.status)).length,
+    done: tickets.filter((t) => ["Done", "Resolved", "Closed"].includes(t.status)).length,
   };
 
   return (
     <DashboardShell>
       <div
-        className="relative isolate min-h-full overflow-hidden bg-zinc-950 px-3 py-5 text-zinc-100 sm:px-6 sm:py-7 lg:px-8"
+        className="relative isolate min-h-full overflow-hidden bg-zinc-50 px-3 py-5 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 sm:px-6 sm:py-7 lg:px-8"
       >
         {/* Decorative accent glows */}
         <div
@@ -202,15 +174,18 @@ export default function MaintenancePage() {
             Owner Portal
           </p>
 
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-50 sm:text-3xl">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-3xl">
             Maintenance requests
           </h1>
 
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400 sm:text-base">
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-600 dark:text-zinc-400 sm:text-base">
             {counts.total} requests: {counts.pending} pending,{" "}
-            {counts.dispatched} dispatched, {counts.resolved} resolved.
+            {counts.assigned} assigned, {counts.done} done.
           </p>
         </div>
+
+        {error && <p role="alert" className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">{error}</p>}
+        {success && <p role="status" className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">{success}</p>}
 
         {/* Summary cards */}
         <section className="relative z-10 mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -218,45 +193,38 @@ export default function MaintenancePage() {
             {
               label: "Total Requests",
               value: counts.total,
-              color: "#f4f4f5",
+              valueClass: "text-zinc-900 dark:text-zinc-50",
               glow: "rgba(16,185,129,0.10)",
             },
             {
               label: "Pending Requests",
               value: counts.pending,
-              color: "#fbbf24",
+              valueClass: "text-amber-600 dark:text-amber-400",
               glow: "rgba(245,158,11,0.08)",
             },
             {
-              label: "Dispatched",
-              value: counts.dispatched,
-              color: "#60a5fa",
+              label: "Assigned",
+              value: counts.assigned,
+              valueClass: "text-blue-600 dark:text-blue-400",
               glow: "rgba(59,130,246,0.08)",
             },
             {
-              label: "Resolved Requests",
-              value: counts.resolved,
-              color: "#34d399",
+              label: "Done Requests",
+              value: counts.done,
+              valueClass: "text-emerald-600 dark:text-emerald-400",
               glow: "rgba(16,185,129,0.08)",
             },
           ].map((item) => (
             <div
               key={item.label}
-              className="relative overflow-hidden rounded-2xl p-5 transition duration-200 hover:-translate-y-1 sm:p-6"
-              style={{
-                ...glassPanel,
-                background: `linear-gradient(135deg, rgba(24,24,27,0.92), ${item.glow})`,
-                border: "1px solid rgba(255,255,255,0.10)",
-                boxShadow: "0 8px 30px rgba(0,0,0,0.24)",
-              }}
+              className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white/80 p-5 shadow-sm transition duration-200 hover:-translate-y-1 dark:border-zinc-800 dark:bg-zinc-900/80 sm:p-6"
             >
-              <p className="text-sm font-medium text-zinc-400">
+              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                 {item.label}
               </p>
 
               <p
-                className="mt-3 text-3xl font-bold tabular-nums"
-                style={{ color: item.color }}
+                className={`mt-3 text-3xl font-bold tabular-nums ${item.valueClass}`}
               >
                 {item.value}
               </p>
@@ -275,22 +243,16 @@ export default function MaintenancePage() {
 
         {/* Maintenance table glass panel */}
         <section
-          className="relative z-10 overflow-hidden rounded-2xl"
-          style={{
-            ...glassPanel,
-            background: "rgba(24,24,27,0.78)",
-            border: "1px solid rgba(255,255,255,0.10)",
-            boxShadow: "0 12px 40px rgba(0,0,0,0.24)",
-          }}
+          className="relative z-10 overflow-hidden rounded-2xl border border-zinc-200 bg-white/90 shadow-sm dark:border-zinc-800 dark:bg-zinc-900/80"
         >
-          <div className="flex items-center justify-between gap-4 border-b border-zinc-700/70 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-4 dark:border-zinc-700/70 sm:px-6 sm:py-5">
             <div>
-              <h2 className="text-lg font-semibold text-zinc-100 sm:text-xl">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 sm:text-xl">
                 All tickets
               </h2>
 
               <p className="mt-1 text-sm text-zinc-400">
-                Assign technicians and manage request status.
+                Mark requests assigned and record when service work is done.
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={loadTickets} disabled={loading}>
@@ -302,21 +264,21 @@ export default function MaintenancePage() {
           <div className="overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left text-sm">
               <thead>
-                <tr className="bg-zinc-800/70 text-xs uppercase tracking-wide text-zinc-400">
+                <tr className="bg-zinc-100 text-xs uppercase tracking-wide text-zinc-600 dark:bg-zinc-800/70 dark:text-zinc-400">
                   {[
                     "Ticket",
                     "Tenant",
                     "Issue",
                     "Priority",
                     "Requested",
-                    "Technician",
+                    "Assignment",
                     "Status",
                     "",
                   ].map((heading, i) => (
                     <th
                       key={i}
                       scope="col"
-                      className="border-b border-zinc-700/70 px-4 py-4 font-semibold"
+                      className="border-b border-zinc-200 px-4 py-4 font-semibold dark:border-zinc-700/70"
                     >
                       {heading}
                     </th>
@@ -336,7 +298,7 @@ export default function MaintenancePage() {
                     key={ticket.id}
                     className="align-top transition-colors hover:bg-white/5"
                   >
-                    <td className="border-b border-zinc-800 px-4 py-4 font-semibold text-zinc-200">
+                    <td className="border-b border-zinc-200 px-4 py-4 font-semibold text-zinc-900 dark:border-zinc-800 dark:text-zinc-200">
                       <span className="whitespace-nowrap font-mono text-xs">
                         {ticket.id}
                       </span>
@@ -350,7 +312,7 @@ export default function MaintenancePage() {
                       </div>
                     </td>
 
-                    <td className="border-b border-zinc-800 px-4 py-4 text-zinc-300">
+                    <td className="border-b border-zinc-200 px-4 py-4 text-zinc-700 dark:border-zinc-800 dark:text-zinc-300">
                       <div className="min-w-[110px] font-semibold">
                         {ticket.tenant}
                       </div>
@@ -360,14 +322,14 @@ export default function MaintenancePage() {
                       </div>
                     </td>
 
-                    <td className="max-w-[18rem] border-b border-zinc-800 px-4 py-4 text-zinc-400">
+                    <td className="max-w-[18rem] border-b border-zinc-200 px-4 py-4 text-zinc-700 dark:border-zinc-800 dark:text-zinc-400">
                       <p className="min-w-[150px] leading-6">
                         {ticket.issue}
                       </p>
                       {ticket.details && <p className="mt-1 min-w-[150px] text-xs leading-5 text-zinc-500">{ticket.details}</p>}
                     </td>
 
-                    <td className="border-b border-zinc-800 px-4 py-4">
+                    <td className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
                       <Badge
                         variant={PRIORITY_VARIANTS[ticket.priority] || "info"}
                       >
@@ -375,31 +337,33 @@ export default function MaintenancePage() {
                       </Badge>
                     </td>
 
-                    <td className="whitespace-nowrap border-b border-zinc-800 px-4 py-4 text-xs text-zinc-500">
+                    <td className="whitespace-nowrap border-b border-zinc-200 px-4 py-4 text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-500">
                       {formatDate(ticket.requestedAt)}
                     </td>
 
-                    <td className="border-b border-zinc-800 px-4 py-4">
-                      <select
-                        aria-label={`Technician for ${ticket.id}`}
-                        className={glassSelect}
-                        style={glassField}
-                        value={ticket.assignedTo}
-                        onChange={(e) => handleAssign(ticket, e.target.value)}
-                      >
-                        {providerOptions.map((provider) => (
-                          <option
-                            key={provider}
-                            value={provider}
-                            style={optionStyle}
+                    <td className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
+                      <div className="flex min-w-[12rem] gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAssign(ticket)}
+                          disabled={ticket.status === "Assigned" || ticket.status === "Done"}
+                        >
+                          {ticket.status === "Assigned" ? "Assigned" : "Assign"}
+                        </Button>
+                        {ticket.status !== "Done" && (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => handleStatus(ticket, "Done")}
                           >
-                            {provider}
-                          </option>
-                        ))}
-                      </select>
+                            Mark done
+                          </Button>
+                        )}
+                      </div>
                     </td>
 
-                    <td className="border-b border-zinc-800 px-4 py-4">
+                    <td className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
                       <div className="mb-3">
                         <Badge
                           variant={STATUS_VARIANTS[ticket.status] || "info"}
@@ -411,7 +375,6 @@ export default function MaintenancePage() {
                       <select
                         aria-label={`Status for ${ticket.id}`}
                         className={glassSelect}
-                        style={glassField}
                         value={ticket.status}
                         onChange={(e) => handleStatus(ticket, e.target.value)}
                       >
@@ -419,7 +382,6 @@ export default function MaintenancePage() {
                           <option
                             key={status}
                             value={status}
-                            style={optionStyle}
                           >
                             {status}
                           </option>
@@ -443,7 +405,7 @@ export default function MaintenancePage() {
           </div>
 
           {/* Mobile scroll hint */}
-          <div className="border-t border-zinc-800 px-4 py-3 text-xs text-zinc-500 sm:hidden">
+          <div className="border-t border-zinc-200 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-800 sm:hidden">
             Swipe left or right to view all ticket details.
           </div>
         </section>
@@ -458,7 +420,7 @@ export default function MaintenancePage() {
               position: "fixed",
               inset: 0,
               zIndex: 9999,
-              background: "rgba(9,9,11,0.72)",
+              background: "rgba(9,9,11,0.55)",
               backdropFilter: "blur(10px)",
               WebkitBackdropFilter: "blur(10px)",
             }}
@@ -469,16 +431,7 @@ export default function MaintenancePage() {
               aria-modal="true"
               aria-labelledby="activity-title"
               onClick={(e) => e.stopPropagation()}
-              className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl p-5 sm:p-6"
-              style={{
-                background:
-                  "linear-gradient(145deg, rgba(39,39,42,0.98), rgba(24,24,27,0.98))",
-                backdropFilter: "blur(24px) saturate(160%)",
-                WebkitBackdropFilter: "blur(24px) saturate(160%)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                boxShadow: "0 25px 80px rgba(0,0,0,0.55)",
-                color: "#f4f4f5",
-              }}
+              className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-5 text-zinc-900 shadow-2xl dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 sm:p-6"
             >
               <div
                 aria-hidden="true"
@@ -499,12 +452,12 @@ export default function MaintenancePage() {
 
                     <h2
                       id="activity-title"
-                      className="break-words text-lg font-bold text-zinc-100 sm:text-xl"
+                      className="break-words text-lg font-bold text-zinc-900 dark:text-zinc-100 sm:text-xl"
                     >
                       {activeTicket.id} activity
                     </h2>
 
-                    <p className="mt-1 text-sm text-zinc-400">
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                       {activeTicket.tenant}, {activeTicket.unit}
                     </p>
                   </div>
@@ -519,14 +472,13 @@ export default function MaintenancePage() {
                 </div>
 
                 <div
-                  className="mb-4 rounded-xl border border-zinc-700 p-4"
-                  style={{ background: "rgba(9,9,11,0.55)" }}
+                  className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/50"
                 >
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     Issue description
                   </p>
 
-                  <p className="mt-2 text-sm leading-6 text-zinc-200">
+                  <p className="mt-2 text-sm leading-6 text-zinc-800 dark:text-zinc-200">
                     {activeTicket.issue}
                   </p>
 
@@ -550,21 +502,17 @@ export default function MaintenancePage() {
                 </div>
 
                 {activeTicket.updates.length === 0 ? (
-                  <p className="rounded-xl border border-zinc-700 bg-zinc-900/70 p-4 text-sm leading-6 text-zinc-400">
-                    No activity yet. Assign a technician to start this request.
+                  <p className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm leading-6 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-950/70 dark:text-zinc-400">
+                    No activity yet. Mark the request assigned to start tracking service.
                   </p>
                 ) : (
                   <ul className="space-y-3">
                     {activeTicket.updates.map((update, index) => (
                       <li
                         key={`${update.at}-${index}`}
-                        className="rounded-xl p-4"
-                        style={{
-                          background: "rgba(9,9,11,0.55)",
-                          border: "1px solid rgba(255,255,255,0.10)",
-                        }}
+                        className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-950/50"
                       >
-                        <div className="break-words text-sm leading-6 text-zinc-200">
+                        <div className="break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
                           {update.message}
                         </div>
 

@@ -34,11 +34,12 @@ export async function GET(request) {
       );
     }
 
-    if (!mongoose.isValidObjectId(session.id)) {
+    if (session.role === "owner" && !mongoose.isValidObjectId(session.id)) {
       return NextResponse.json({ error: "Invalid user session." }, { status: 403 });
     }
 
     const params = new URL(request.url).searchParams;
+    const includeAll = session.role === "admin" && params.get("includeAll") === "true";
     const providerFilter = params.get("provider")?.trim() || "";
     const propertyFilter = params.get("property") || "";
     const from = params.get("from") || "";
@@ -59,10 +60,12 @@ export async function GET(request) {
 
     await dbConnect();
 
-    const query = {
-      status: { $in: COMPLETED_STATUSES },
-      assignedTo: { $nin: ["", "Unassigned"] },
-    };
+    const query = session.role === "admin" && includeAll
+      ? {}
+      : {
+          status: { $in: COMPLETED_STATUSES },
+          assignedTo: { $nin: ["", "Unassigned"] },
+        };
     if (session.role === "owner") query.ownerId = session.id;
     const [requests, availableProperties] = await Promise.all([
       MaintenanceRequest.find(query)
@@ -88,6 +91,8 @@ export async function GET(request) {
       unit: item.unit || "N/A",
       rating: Number.isFinite(item.rating) ? item.rating : null,
       comment: item.comment || "",
+      status: item.status,
+      requestedAt: item.createdAt,
     }));
 
     const properties = availableProperties.map((property) => ({
@@ -135,7 +140,7 @@ export async function GET(request) {
 
     await AuditLog.create({
       action: "provider-job-history-viewed",
-      actorId: session.id,
+      ...(mongoose.isValidObjectId(session.id) ? { actorId: session.id } : {}),
       actorRole: session.role,
       ...(session.role === "owner" ? { ownerId: session.id } : {}),
       ...(propertyFilter ? { propertyId: propertyFilter } : {}),

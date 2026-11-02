@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/utils";
 import { downloadInvoice } from "@/lib/invoiceDownload";
 import { useAuth } from "@/hooks/useAuth";
+import { ArrowRight, Banknote, FileText, House, UserRound, Wrench } from "lucide-react";
 
 function formatDueDate(date) {
   if (!date) return "Not available";
@@ -127,7 +128,7 @@ export default function TenantDashboardPage() {
       actions={
         <Link href="/tenant/payments">
           <Button variant="primary" size="md">
-            💳 Pay Rent Online
+            <Banknote aria-hidden="true" size={16} /> Pay Rent Online
           </Button>
         </Link>
       }
@@ -140,7 +141,7 @@ export default function TenantDashboardPage() {
               <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-full">
                 Active Tenancy
               </span>
-              <span className="text-xl">🏠</span>
+              <House aria-hidden="true" size={20} className="text-blue-500" />
             </div>
             <div>
               <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">
@@ -166,7 +167,7 @@ export default function TenantDashboardPage() {
                 </h3>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Your current rent details</p>
               </div>
-              <span aria-hidden="true" className="text-xl">💰</span>
+              <Banknote aria-hidden="true" size={20} className="text-emerald-500" />
             </div>
 
             {rentLoading ? (
@@ -250,7 +251,7 @@ export default function TenantDashboardPage() {
               <span className="text-xs font-semibold text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full">
                 Maintenance
               </span>
-              <span className="text-xl">🛠️</span>
+              <Wrench aria-hidden="true" size={20} className="text-amber-500" />
             </div>
             {maintenanceLoading ? (
               <p role="status" className="text-sm text-zinc-500">Loading requests...</p>
@@ -282,20 +283,20 @@ export default function TenantDashboardPage() {
       {/* Quick Navigation Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { title: "Pay Rent", desc: "Cards, bKash, Nagad, Internet Banking", icon: "💳", href: "/tenant/payments" },
-          { title: "Service Request", desc: "Plumbers, electricians & HVAC", icon: "🔧", href: "/tenant/maintenance" },
-          { title: "Lease Contract", desc: "Terms, agreement PDF, renewal", icon: "📄", href: "/tenant/lease" },
-          { title: "My Profile", desc: "Emergency contacts & security", icon: "👤", href: "/tenant/profile" },
+          { title: "Pay Rent", desc: "Cards, bKash, Nagad, Internet Banking", icon: Banknote, href: "/tenant/payments" },
+          { title: "Service Request", desc: "Plumbers, electricians & HVAC", icon: Wrench, href: "/tenant/maintenance" },
+          { title: "Lease Contract", desc: "Terms, agreement PDF, renewal", icon: FileText, href: "/tenant/lease" },
+          { title: "My Profile", desc: "Emergency contacts & security", icon: UserRound, href: "/tenant/lease" },
         ].map((item, idx) => (
           <Link key={idx} href={item.href}>
             <Card className="hover:border-blue-500/50 hover:shadow-md transition-all p-5 h-full flex flex-col justify-between">
-              <div className="text-3xl mb-3">{item.icon}</div>
+              <item.icon className="mb-3 text-blue-500" size={28} aria-hidden="true" />
               <div>
                 <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{item.title}</h4>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{item.desc}</p>
               </div>
               <div className="mt-3 text-xs font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                Open →
+                Open <ArrowRight aria-hidden="true" size={14} />
               </div>
             </Card>
           </Link>
