@@ -6,21 +6,22 @@ import Provider from "@/lib/models/Provider";
 import Property from "@/lib/models/Property";
 import Payment from "@/lib/models/Payment";
 import MaintenanceRequest from "@/lib/models/MaintenanceRequest";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "@/lib/jwt";
 
-function verifyAdmin(req) {
+async function verifyAdmin(req) {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) throw new Error("Unauthorized");
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.role !== "superadmin") throw new Error("Forbidden");
-    return decoded.userId;
+    const decoded = await verifyToken(token);
+    if (!decoded) throw new Error("Unauthorized");
+    if (decoded.role !== "superadmin" && decoded.role !== "admin") throw new Error("Forbidden");
+    return decoded.userId || decoded.id;
 }
 
 export async function GET(req) {
     try {
         await dbConnect();
-        verifyAdmin(req);
+        await verifyAdmin(req);
 
         const tenants = await Tenant.countDocuments({ status: "active" });
         const owners = await Owner.countDocuments({ status: "active" });

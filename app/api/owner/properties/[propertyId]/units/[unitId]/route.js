@@ -2,21 +2,23 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Unit from "@/lib/models/Unit";
 import AuditLog from "@/lib/models/AuditLog";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "@/lib/jwt";
 
-function verifyOwner(req) {
+async function verifyOwner(req) {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) throw new Error("Unauthorized");
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = await verifyToken(token);
+    if (!decoded) throw new Error("Unauthorized");
     if (decoded.role !== "owner") throw new Error("Forbidden");
-    return decoded.userId;
+    return decoded.userId || decoded.id;
 }
 
 export async function PUT(req, { params }) {
     try {
         await dbConnect();
-        const ownerId = verifyOwner(req);
+        const ownerId = await verifyOwner(req);
+        const { unitId } = await params;
 
         const body = await req.json();
         const { unitNumber, size, availability, tenantId } = body;
@@ -25,7 +27,7 @@ export async function PUT(req, { params }) {
             return NextResponse.json({ error: "Unit number and size are required" }, { status: 400 });
         }
 
-        const unit = await Unit.findById(params.unitId);
+        const unit = await Unit.findById(unitId);
         if (!unit) return NextResponse.json({ error: "Unit not found" }, { status: 404 });
 
         unit.unitNumber = unitNumber;
@@ -51,16 +53,17 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
     try {
         await dbConnect();
-        const ownerId = verifyOwner(req);
+        const ownerId = await verifyOwner(req);
+        const { unitId } = await params;
 
-        const unit = await Unit.findById(params.unitId);
+        const unit = await Unit.findById(unitId);
         if (!unit) return NextResponse.json({ error: "Unit not found" }, { status: 404 });
 
         await unit.deleteOne();
 
         await AuditLog.create({
             action: "delete-unit",
-            unitId: params.unitId,
+            unitId,
             propertyId: unit.propertyId,
             ownerId,
             timestamp: new Date(),

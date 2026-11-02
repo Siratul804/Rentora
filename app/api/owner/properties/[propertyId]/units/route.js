@@ -1,23 +1,25 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Unit from "@/lib/models/Unit";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "@/lib/jwt";
 
-function verifyOwner(req) {
+async function verifyOwner(req) {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) throw new Error("Unauthorized");
     const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = await verifyToken(token);
+    if (!decoded) throw new Error("Unauthorized");
     if (decoded.role !== "owner") throw new Error("Forbidden");
-    return decoded.userId;
+    return decoded.userId || decoded.id;
 }
 
 export async function GET(req, { params }) {
     try {
         await dbConnect();
-        const ownerId = verifyOwner(req);
+        const ownerId = await verifyOwner(req);
+        const { propertyId } = await params;
 
-        const units = await Unit.find({ propertyId: params.propertyId, ownerId });
+        const units = await Unit.find({ propertyId, ownerId });
         return NextResponse.json(units);
     } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 400 });

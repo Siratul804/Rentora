@@ -79,22 +79,7 @@ export default function AdminServiceProvidersPage() {
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle>Maintenance Assignments ({filtered.length})</CardTitle>
-            <div className="flex flex-wrap items-center gap-2">
-              {filters.map((category) => (
-                <button
-                  key={String(category)}
-                  type="button"
-                  onClick={() => setSelectedFilter(category)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    selectedFilter === category
-                      ? "bg-purple-600 text-white"
-                      : "border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
+
           </div>
         </CardHeader>
         <CardContent className="p-0">
