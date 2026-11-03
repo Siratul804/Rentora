@@ -224,7 +224,7 @@ async function handleUpdateTenant(request, { params }) {
       tenant.isActive = isActive;
     }
 
-    // Password reset if provided
+    let passwordUpdated = false;
     if (typeof password === "string" && password.length > 0) {
       if (password.length < 6) {
         return NextResponse.json(
@@ -233,6 +233,7 @@ async function handleUpdateTenant(request, { params }) {
         );
       }
       tenant.passwordHash = await bcrypt.hash(password, 10);
+      passwordUpdated = true;
     }
 
     await tenant.save();
@@ -263,6 +264,7 @@ async function handleUpdateTenant(request, { params }) {
     return NextResponse.json({
       success: true,
       message: statusMessage,
+      passwordUpdated,
       tenant: {
         id: tenant._id.toString(),
         name: tenant.name,

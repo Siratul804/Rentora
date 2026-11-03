@@ -119,7 +119,11 @@ export default function MaintenancePage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to update maintenance request.");
       await loadTickets();
-      setSuccess("Maintenance request updated.");
+      setSuccess(
+        patch.status === "Closed"
+          ? "Request closed and moved to Provider Job History."
+          : "Maintenance request updated."
+      );
     } catch (updateError) {
       setError(updateError.message || "Failed to update maintenance request.");
     }

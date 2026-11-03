@@ -28,7 +28,7 @@ export async function GET() {
       return NextResponse.json({ error: "Owner account not found." }, { status: 403 });
     }
 
-    const query = { ownerId: owner._id };
+    const query = { ownerId: owner._id, status: { $ne: "Closed" } };
 
     const requests = await MaintenanceRequest.find(query)
       .populate("tenantId", "name")
@@ -176,40 +176,18 @@ export async function PATCH(request) {
       maintenanceRequest.activityHistory.push(...changes);
       await maintenanceRequest.save();
 
-      const owner = await User.findOne({
-        _id: maintenanceRequest.ownerId,
-        role: ROLES.OWNER,
-        isActive: { $ne: false },
-      });
-      if (owner) {
-        await createNotification({
-          recipient: owner,
-          ownerId: owner._id,
-          tenantId: maintenanceRequest.tenantId,
-          maintenanceRequestId: maintenanceRequest._id,
-          type: "maintenance-updated",
-          title: "Maintenance request updated",
-          message: `"${maintenanceRequest.title}" is now ${maintenanceRequest.status}${maintenanceRequest.assignedTo !== "Unassigned" ? ` and assigned to ${maintenanceRequest.assignedTo}` : ""}.`,
-          details: {
-            maintenanceTitle: maintenanceRequest.title,
-            maintenanceStatus: maintenanceRequest.status,
-            category: maintenanceRequest.category,
-            unit: maintenanceRequest.unit || "",
-          },
-        });
-      }
-
-      if (maintenanceRequest.tenantId) {
-        const tenant = await User.findOne({
-          _id: maintenanceRequest.tenantId,
-          role: "tenant",
+      let owner = null;
+      try {
+        owner = await User.findOne({
+          _id: maintenanceRequest.ownerId,
+          role: ROLES.OWNER,
           isActive: { $ne: false },
         });
-        if (tenant) {
+        if (owner) {
           await createNotification({
-            recipient: tenant,
-            ownerId: owner?._id || maintenanceRequest.ownerId,
-            tenantId: tenant._id,
+            recipient: owner,
+            ownerId: owner._id,
+            tenantId: maintenanceRequest.tenantId,
             maintenanceRequestId: maintenanceRequest._id,
             type: "maintenance-updated",
             title: "Maintenance request updated",
@@ -221,6 +199,37 @@ export async function PATCH(request) {
               unit: maintenanceRequest.unit || "",
             },
           });
+        }
+      } catch (error) {
+        console.error("Notify owner about maintenance request update error:", error);
+      }
+
+      if (maintenanceRequest.tenantId) {
+        try {
+          const tenant = await User.findOne({
+            _id: maintenanceRequest.tenantId,
+            role: "tenant",
+            isActive: { $ne: false },
+          });
+          if (tenant) {
+            await createNotification({
+              recipient: tenant,
+              ownerId: owner?._id || maintenanceRequest.ownerId,
+              tenantId: tenant._id,
+              maintenanceRequestId: maintenanceRequest._id,
+              type: "maintenance-updated",
+              title: "Maintenance request updated",
+              message: `"${maintenanceRequest.title}" is now ${maintenanceRequest.status}${maintenanceRequest.assignedTo !== "Unassigned" ? ` and assigned to ${maintenanceRequest.assignedTo}` : ""}.`,
+              details: {
+                maintenanceTitle: maintenanceRequest.title,
+                maintenanceStatus: maintenanceRequest.status,
+                category: maintenanceRequest.category,
+                unit: maintenanceRequest.unit || "",
+              },
+            });
+          }
+        } catch (error) {
+          console.error("Notify tenant about maintenance request update error:", error);
         }
       }
     }

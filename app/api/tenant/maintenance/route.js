@@ -45,7 +45,9 @@ async function getTenantAndLease(session) {
     property = await Property.findOne({ ownerId: lease.ownerId, name: lease.propertyName }).select("_id");
   }
   if (!property) {
-    return { error: "Your lease is missing a linked property. Please contact your property owner." };
+    return {
+      error: `Your lease lists "${lease.propertyName}", but that property is not in your owner's portfolio. Please ask your property owner to create the property and link it to your lease.`,
+    };
   }
 
   return { tenant, lease, propertyId: property._id };
@@ -129,38 +131,50 @@ export async function POST(request) {
       }],
     });
 
-    const owner = await User.findOne({
-      _id: maintenanceRequest.ownerId,
-      role: "owner",
-      isActive: { $ne: false },
-    });
-    if (owner) {
-      await createNotification({
-        recipient: owner,
-        ownerId: owner._id,
-        tenantId: result.tenant._id,
-        maintenanceRequestId: maintenanceRequest._id,
-        type: "maintenance-submitted",
-        title: "New maintenance request",
-        message: `${result.tenant.name} submitted "${maintenanceRequest.title}" for ${result.lease.propertyName}${result.lease.unit ? `, ${result.lease.unit}` : ""}.`,
-        details: {
-          maintenanceTitle: maintenanceRequest.title,
-          maintenanceStatus: maintenanceRequest.status,
-          category: maintenanceRequest.category,
-          propertyName: result.lease.propertyName,
-          unit: result.lease.unit || "",
-          tenantName: result.tenant.name,
-        },
+    let notificationWarning = "";
+    try {
+      const owner = await User.findOne({
+        _id: maintenanceRequest.ownerId,
+        role: "owner",
+        isActive: { $ne: false },
       });
+      if (owner) {
+        await createNotification({
+          recipient: owner,
+          ownerId: owner._id,
+          tenantId: result.tenant._id,
+          maintenanceRequestId: maintenanceRequest._id,
+          type: "maintenance-submitted",
+          title: "New maintenance request",
+          message: `${result.tenant.name} submitted "${maintenanceRequest.title}" for ${result.lease.propertyName}${result.lease.unit ? `, ${result.lease.unit}` : ""}.`,
+          details: {
+            maintenanceTitle: maintenanceRequest.title,
+            maintenanceStatus: maintenanceRequest.status,
+            category: maintenanceRequest.category,
+            propertyName: result.lease.propertyName,
+            unit: result.lease.unit || "",
+            tenantName: result.tenant.name,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Notify owner about tenant maintenance request error:", error);
+      notificationWarning = " Your property owner may not have received a notification.";
     }
 
     return NextResponse.json({
       success: true,
       message: "Maintenance request submitted successfully.",
+      notificationWarning,
       request: serializeRequest(maintenanceRequest),
     }, { status: 201 });
   } catch (error) {
     console.error("Submit tenant maintenance request error:", error);
-    return NextResponse.json({ error: "Failed to submit your maintenance request." }, { status: 500 });
+    return NextResponse.json(
+      { error: process.env.NODE_ENV === "development" && error instanceof Error
+        ? error.message
+        : "Failed to submit your maintenance request." },
+      { status: 500 }
+    );
   }
 }

@@ -196,6 +196,20 @@ export async function POST(request) {
       );
     }
 
+    let linkedProperty = mongoose.Types.ObjectId.isValid(propertyId)
+      ? await Property.findOne({ _id: propertyId, ownerId })
+      : null;
+    if (!linkedProperty && !propertyId) {
+      linkedProperty = await Property.findOne({ ownerId, name: finalPropertyName });
+    }
+    if (!linkedProperty) {
+      return NextResponse.json(
+        { error: "Select a property in your portfolio. Create it from Properties before adding this lease." },
+        { status: 400 }
+      );
+    }
+    finalPropertyName = linkedProperty.name;
+
     // Validate tenant reference
     let resolvedTenantId = null;
     if (tenantId) {
@@ -264,7 +278,7 @@ export async function POST(request) {
       tenantName: finalTenantName,
       tenantEmail: (tenantEmail || "").trim().toLowerCase(),
       tenantPhone: (tenantPhone || "").trim(),
-      propertyId: mongoose.Types.ObjectId.isValid(propertyId) ? propertyId : null,
+      propertyId: linkedProperty._id,
       propertyName: finalPropertyName,
       unit: finalUnit,
       startDate: startDate.trim(),

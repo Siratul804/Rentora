@@ -40,7 +40,7 @@ export async function GET() {
     }
 
     // Fetch tenants created by this authenticated owner
-    const query = { role: ROLES.TENANT, createdBy: ownerId };
+    const query = { role: ROLES.TENANT, createdBy: ownerId, isActive: { $ne: false } };
 
     const tenants = await User.find(query, { passwordHash: 0 })
       .sort({ createdAt: -1 })

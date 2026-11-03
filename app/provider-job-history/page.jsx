@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { DashboardShell } from "@/components/layouts/DashboardShell";
-import { Badge } from "@/components/ui/Badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -11,20 +10,15 @@ function formatDate(value) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
 }
 
-function Rating({ value }) {
-  return value == null ? (
-    <span className="text-zinc-500">Not rated</span>
-  ) : (
-    <span aria-label={`${value} out of 5 stars`} className="font-semibold text-amber-600 dark:text-amber-400">
-      {value} / 5
-    </span>
-  );
+function getLocalDateBoundary(value, nextDay = false) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day + Number(nextDay)).toISOString();
 }
 
 export default function ProviderJobHistoryPage() {
   const { role } = useAuth();
-  const [filters, setFilters] = useState({ provider: "", property: "", from: "", to: "" });
-  const [data, setData] = useState({ jobs: [], providers: [], properties: [], summaries: [] });
+  const [filters, setFilters] = useState({ property: "", from: "", to: "" });
+  const [data, setData] = useState({ jobs: [], properties: [] });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -35,7 +29,10 @@ export default function ProviderJobHistoryPage() {
     setMessage("");
     const params = new URLSearchParams();
     Object.entries(nextFilters).forEach(([key, value]) => {
-      if (value) params.set(key, value);
+      if (!value) return;
+      if (key === "from") params.set(key, getLocalDateBoundary(value));
+      else if (key === "to") params.set(key, getLocalDateBoundary(value, true));
+      else params.set(key, value);
     });
 
     try {
@@ -45,7 +42,7 @@ export default function ProviderJobHistoryPage() {
       setData(result);
       setMessage(`${result.jobs.length} completed job${result.jobs.length === 1 ? "" : "s"} found.`);
     } catch (loadError) {
-      setData({ jobs: [], providers: [], properties: [], summaries: [] });
+      setData({ jobs: [], properties: [] });
       setError(loadError.message || "Failed to load provider job history.");
     } finally {
       setLoading(false);
@@ -53,7 +50,7 @@ export default function ProviderJobHistoryPage() {
   }, []);
 
   useEffect(() => {
-    loadHistory({ provider: "", property: "", from: "", to: "" });
+    loadHistory({ property: "", from: "", to: "" });
   }, [loadHistory]);
 
   function updateFilter(event) {
@@ -70,7 +67,7 @@ export default function ProviderJobHistoryPage() {
     <DashboardShell
       portal={role === "admin" ? "admin" : "owner"}
       title="Provider Job History"
-      subtitle="Review completed service requests, feedback, and provider performance."
+      subtitle="Review completed and closed service requests."
     >
       <div className="space-y-6">
         <Card>
@@ -78,19 +75,7 @@ export default function ProviderJobHistoryPage() {
             <CardTitle>Filter job history</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={submitFilters} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              <label className="space-y-1 text-sm font-medium">
-                <span>Provider</span>
-                <select
-                  name="provider"
-                  value={filters.provider}
-                  onChange={updateFilter}
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                >
-                  <option value="">All providers</option>
-                  {data.providers.map((provider) => <option key={provider} value={provider}>{provider}</option>)}
-                </select>
-              </label>
+            <form onSubmit={submitFilters} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="space-y-1 text-sm font-medium">
                 <span>Property</span>
                 <select
@@ -148,28 +133,6 @@ export default function ProviderJobHistoryPage() {
           ) : null}
         </div>
 
-        {data.summaries.length > 0 && (
-          <section aria-label="Provider performance summary" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {data.summaries.map((summary) => (
-              <Card key={summary.provider}>
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">{summary.provider}</h2>
-                    <Badge variant="info" size="sm">{summary.completedJobs} jobs</Badge>
-                  </div>
-                  <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-                    Average rating:{" "}
-                    <strong className="text-zinc-900 dark:text-zinc-100">
-                      {summary.averageRating == null ? "Not rated" : `${summary.averageRating.toFixed(1)} / 5`}
-                    </strong>
-                  </p>
-                  <p className="mt-1 text-xs text-zinc-500">{summary.ratedJobs} rated job{summary.ratedJobs === 1 ? "" : "s"}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </section>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle>Completed requests</CardTitle>
@@ -187,11 +150,9 @@ export default function ProviderJobHistoryPage() {
                   <table className="w-full text-left text-sm">
                     <thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/60">
                       <tr>
-                        <th scope="col" className="px-5 py-3">Issue / provider</th>
+                        <th scope="col" className="px-5 py-3">Issue / property</th>
                         <th scope="col" className="px-5 py-3">Completed</th>
                         <th scope="col" className="px-5 py-3">Tenant / unit</th>
-                        <th scope="col" className="px-5 py-3">Rating</th>
-                        <th scope="col" className="px-5 py-3">Comments</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -199,12 +160,10 @@ export default function ProviderJobHistoryPage() {
                         <tr key={job.id} className="align-top">
                           <td className="px-5 py-4">
                             <p className="font-medium text-zinc-900 dark:text-zinc-100">{job.issue}</p>
-                            <p className="mt-1 text-xs text-zinc-500">{job.provider} · {job.property}</p>
+                            <p className="mt-1 text-xs text-zinc-500">{job.property}</p>
                           </td>
                           <td className="whitespace-nowrap px-5 py-4 text-zinc-600 dark:text-zinc-400">{formatDate(job.completionDate)}</td>
                           <td className="px-5 py-4 text-zinc-600 dark:text-zinc-400">{job.tenant}<br />{job.unit}</td>
-                          <td className="px-5 py-4"><Rating value={job.rating} /></td>
-                          <td className="max-w-xs px-5 py-4 text-zinc-600 dark:text-zinc-400">{job.comment || "No comments"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -213,16 +172,12 @@ export default function ProviderJobHistoryPage() {
                 <div className="space-y-3 p-4 md:hidden">
                   {data.jobs.map((job) => (
                     <article key={job.id} className="rounded-xl border border-zinc-200 p-4 dark:border-zinc-800">
-                      <div className="flex items-start justify-between gap-3">
-                        <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">{job.issue}</h2>
-                        <Rating value={job.rating} />
-                      </div>
-                      <p className="mt-1 text-sm text-zinc-500">{job.provider} · {job.property}</p>
+                      <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">{job.issue}</h2>
+                      <p className="mt-1 text-sm text-zinc-500">{job.property}</p>
                       <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
                         <div><dt className="text-xs text-zinc-500">Completed</dt><dd>{formatDate(job.completionDate)}</dd></div>
                         <div><dt className="text-xs text-zinc-500">Tenant / unit</dt><dd>{job.tenant}, {job.unit}</dd></div>
                       </dl>
-                      <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">{job.comment || "No comments"}</p>
                     </article>
                   ))}
                 </div>

@@ -8,6 +8,17 @@ import { getServerSession } from "@/lib/session";
 
 const COMPLETED_STATUSES = ["Resolved", "Closed"];
 
+function parseDateBoundary(value, endOfDate) {
+  if (!value) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    if (endOfDate) date.setUTCDate(date.getUTCDate() + 1);
+    return date;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function getCompletionDate(request) {
   if (request.completedAt) return request.completedAt;
 
@@ -40,7 +51,6 @@ export async function GET(request) {
 
     const params = new URL(request.url).searchParams;
     const includeAll = session.role === "admin" && params.get("includeAll") === "true";
-    const providerFilter = params.get("provider")?.trim() || "";
     const propertyFilter = params.get("property") || "";
     const from = params.get("from") || "";
     const to = params.get("to") || "";
@@ -48,10 +58,12 @@ export async function GET(request) {
     if (propertyFilter && !mongoose.isValidObjectId(propertyFilter)) {
       return NextResponse.json({ error: "Invalid property filter." }, { status: 400 });
     }
-    if ((from && Number.isNaN(Date.parse(from))) || (to && Number.isNaN(Date.parse(to)))) {
+    const fromDate = parseDateBoundary(from, false);
+    const toDate = parseDateBoundary(to, true);
+    if ((from && !fromDate) || (to && !toDate)) {
       return NextResponse.json({ error: "Invalid date range." }, { status: 400 });
     }
-    if (from && to && new Date(from) > new Date(to)) {
+    if (fromDate && toDate && fromDate >= toDate) {
       return NextResponse.json(
         { error: "The start date must be on or before the end date." },
         { status: 400 }
@@ -64,7 +76,10 @@ export async function GET(request) {
       ? {}
       : {
           status: { $in: COMPLETED_STATUSES },
-          assignedTo: { $nin: ["", "Unassigned"] },
+          $or: [
+            { assignedTo: { $nin: ["", "Unassigned"] } },
+            { status: "Closed" },
+          ],
         };
     if (session.role === "owner") query.ownerId = session.id;
     const [requests, availableProperties] = await Promise.all([
@@ -84,13 +99,10 @@ export async function GET(request) {
       issue: item.title,
       category: item.category || "Other",
       completionDate: getCompletionDate(item),
-      provider: item.assignedTo,
       propertyId: item.propertyId?._id?.toString() || "",
       property: item.propertyId?.name || "Property",
       tenant: item.tenantId?.name || "Tenant not assigned",
       unit: item.unit || "N/A",
-      rating: Number.isFinite(item.rating) ? item.rating : null,
-      comment: item.comment || "",
       status: item.status,
       requestedAt: item.createdAt,
     }));
@@ -99,44 +111,14 @@ export async function GET(request) {
       id: property._id.toString(),
       name: property.name,
     }));
-    const providers = [...new Set(allJobs.map((job) => job.provider))].sort((a, b) =>
-      a.localeCompare(b)
-    );
-    const fromDate = from ? new Date(`${from}T00:00:00.000Z`) : null;
-    const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null;
-
     const jobs = allJobs.filter((job) => {
       const completionDate = new Date(job.completionDate);
       return (
-        (!providerFilter || job.provider === providerFilter) &&
         (!propertyFilter || job.propertyId === propertyFilter) &&
         (!fromDate || completionDate >= fromDate) &&
-        (!toDate || completionDate <= toDate)
+        (!toDate || completionDate < toDate)
       );
     });
-
-    const summaries = Object.values(
-      jobs.reduce((result, job) => {
-        const summary = result[job.provider] || {
-          provider: job.provider,
-          completedJobs: 0,
-          ratingTotal: 0,
-          ratedJobs: 0,
-        };
-        summary.completedJobs += 1;
-        if (job.rating !== null) {
-          summary.ratingTotal += job.rating;
-          summary.ratedJobs += 1;
-        }
-        result[job.provider] = summary;
-        return result;
-      }, {})
-    ).map(({ provider, completedJobs, ratingTotal, ratedJobs }) => ({
-      provider,
-      completedJobs,
-      averageRating: ratedJobs ? ratingTotal / ratedJobs : null,
-      ratedJobs,
-    }));
 
     await AuditLog.create({
       action: "provider-job-history-viewed",
@@ -150,9 +132,7 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       jobs,
-      providers,
       properties,
-      summaries,
     });
   } catch (error) {
     console.error("Fetch provider job history error:", error);

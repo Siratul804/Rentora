@@ -38,6 +38,7 @@ export default function OwnerLeasesPage() {
     tenantName: "",
     tenantEmail: "",
     tenantPhone: "",
+    propertyId: "",
     propertyName: "",
     unit: "",
     startDate: "",
@@ -124,7 +125,8 @@ export default function OwnerLeasesPage() {
       tenantName: "",
       tenantEmail: "",
       tenantPhone: "",
-      propertyName: propertiesList[0]?.name || "Green Horizon Residency",
+      propertyId: propertiesList[0]?.id || "",
+      propertyName: propertiesList[0]?.name || "",
       unit: "Unit 1A",
       startDate: todayStr,
       endDate: endStr,
@@ -153,16 +155,15 @@ export default function OwnerLeasesPage() {
       return;
     }
 
+    const tenantProperty = propertiesList.find((property) => property.name === selectedTenant.property);
     setFormData((prev) => ({
       ...prev,
       tenantId: selectedTenant.id,
       tenantName: selectedTenant.name,
       tenantEmail: selectedTenant.email || "",
       tenantPhone: selectedTenant.phone && selectedTenant.phone !== "—" ? selectedTenant.phone : "",
-      propertyName:
-        selectedTenant.property && selectedTenant.property !== "Not Assigned"
-          ? selectedTenant.property
-          : prev.propertyName,
+      propertyId: tenantProperty?.id || prev.propertyId,
+      propertyName: tenantProperty?.name || prev.propertyName,
       unit:
         selectedTenant.unit && selectedTenant.unit !== "Not Assigned"
           ? selectedTenant.unit
@@ -182,6 +183,8 @@ export default function OwnerLeasesPage() {
       tenantName: lease.tenantName || lease.tenant || "",
       tenantEmail: lease.tenantEmail || "",
       tenantPhone: lease.tenantPhone || "",
+      propertyId:
+        lease.propertyId || propertiesList.find((property) => property.name === lease.propertyName)?.id || "",
       propertyName: lease.propertyName || lease.property?.replace(/\s*\([^)]+\)$/, "") || "",
       unit: lease.unit || (lease.property?.match(/\(([^)]+)\)$/)?.[1] || ""),
       startDate: lease.startDate || "",
@@ -222,6 +225,7 @@ export default function OwnerLeasesPage() {
         tenantName: formData.tenantName.trim(),
         tenantEmail: formData.tenantEmail.trim(),
         tenantPhone: formData.tenantPhone.trim(),
+        propertyId: formData.propertyId,
         propertyName: formData.propertyName.trim(),
         unit: formData.unit.trim(),
         startDate: formData.startDate.trim(),
@@ -259,6 +263,7 @@ export default function OwnerLeasesPage() {
         tenantName: formData.tenantName.trim(),
         tenantEmail: formData.tenantEmail.trim(),
         tenantPhone: formData.tenantPhone.trim(),
+        propertyId: formData.propertyId,
         propertyName: formData.propertyName.trim(),
         unit: formData.unit.trim(),
         startDate: formData.startDate.trim(),
@@ -554,7 +559,7 @@ export default function OwnerLeasesPage() {
           <div className="relative group overflow-hidden rounded-2xl p-5 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:border-cyan-500/40 transition-all duration-300">
             <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/15 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
             <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Monthly Rent Roll</span>
-            <div className="text-3xl font-extrabold text-zinc-900 dark:text-white mt-1.5 tracking-tight">
+            <div className="text-xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white mt-1.5 tracking-tight leading-tight">
               {formatCurrency(stats.totalRent)}
             </div>
             <span className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 block">Expected monthly cashflow</span>
@@ -564,7 +569,7 @@ export default function OwnerLeasesPage() {
           <div className="relative group overflow-hidden rounded-2xl p-5 bg-white/60 dark:bg-zinc-900/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:border-amber-500/40 transition-all duration-300">
             <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/15 rounded-full blur-2xl group-hover:scale-125 transition-transform" />
             <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Deposit Escrow</span>
-            <div className="text-3xl font-extrabold text-zinc-900 dark:text-white mt-1.5 tracking-tight">
+            <div className="text-xl sm:text-3xl font-extrabold text-zinc-900 dark:text-white mt-1.5 tracking-tight leading-tight">
               {formatCurrency(stats.totalDeposit)}
             </div>
             <span className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1 block">Protected in guarantee</span>
@@ -778,22 +783,31 @@ export default function OwnerLeasesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Property Name <span className="text-rose-500">*</span>
+                    Property <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    list="property-suggestions"
-                    value={formData.propertyName}
-                    onChange={(e) => setFormData({ ...formData, propertyName: e.target.value })}
-                    placeholder="e.g. Green Horizon Residency"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
-                  <datalist id="property-suggestions">
+                    value={formData.propertyId}
+                    onChange={(e) => {
+                      const selectedProperty = propertiesList.find((property) => property.id === e.target.value);
+                      setFormData({
+                        ...formData,
+                        propertyId: selectedProperty?.id || "",
+                        propertyName: selectedProperty?.name || "",
+                      });
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  >
+                    <option value="">-- Choose a property --</option>
                     {propertiesList.map((p) => (
-                      <option key={p.id} value={p.name} />
+                      <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
-                  </datalist>
+                  </select>
+                  {propertiesList.length === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Create a property in Properties before adding a lease.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -838,7 +852,7 @@ export default function OwnerLeasesPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Monthly Rent (BDT) <span className="text-rose-500">*</span>
                   </label>
@@ -849,10 +863,10 @@ export default function OwnerLeasesPage() {
                     value={formData.rent}
                     onChange={(e) => setFormData({ ...formData, rent: e.target.value })}
                     placeholder="30000"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="block box-border w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Security Deposit (BDT)
                   </label>
@@ -862,7 +876,7 @@ export default function OwnerLeasesPage() {
                     value={formData.deposit}
                     onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
                     placeholder="60000"
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="block box-border w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -977,15 +991,26 @@ export default function OwnerLeasesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                    Property Name <span className="text-rose-500">*</span>
+                    Property <span className="text-rose-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    value={formData.propertyName}
-                    onChange={(e) => setFormData({ ...formData, propertyName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                  />
+                    value={formData.propertyId}
+                    onChange={(e) => {
+                      const selectedProperty = propertiesList.find((property) => property.id === e.target.value);
+                      setFormData({
+                        ...formData,
+                        propertyId: selectedProperty?.id || "",
+                        propertyName: selectedProperty?.name || "",
+                      });
+                    }}
+                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-900 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  >
+                    <option value="">-- Choose a property --</option>
+                    {propertiesList.map((property) => (
+                      <option key={property.id} value={property.id}>{property.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
@@ -1028,7 +1053,7 @@ export default function OwnerLeasesPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Monthly Rent (BDT) <span className="text-rose-500">*</span>
                   </label>
@@ -1038,10 +1063,10 @@ export default function OwnerLeasesPage() {
                     required
                     value={formData.rent}
                     onChange={(e) => setFormData({ ...formData, rent: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="block box-border w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
                     Security Deposit (BDT)
                   </label>
@@ -1050,7 +1075,7 @@ export default function OwnerLeasesPage() {
                     min="0"
                     value={formData.deposit}
                     onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                    className="block box-border w-full min-w-0 max-w-full px-3.5 py-2.5 rounded-xl text-sm bg-white/60 dark:bg-white/5 border border-zinc-300/80 dark:border-white/10 text-zinc-900 dark:text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                   />
                 </div>
                 <div className="space-y-1.5">
