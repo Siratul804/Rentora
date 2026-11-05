@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Lease from "@/lib/models/Lease";
+import Property from "@/lib/models/Property";
 import User from "@/lib/models/User";
 import { getServerSession } from "@/lib/session";
 import { ROLES } from "@/lib/auth";
@@ -131,6 +132,7 @@ export async function PATCH(request, { params }) {
       tenantId,
       property,
       propertyName,
+      propertyId,
       unit,
       startDate,
       endDate,
@@ -157,6 +159,28 @@ export async function PATCH(request, { params }) {
 
     if (!existing) {
       return NextResponse.json({ error: "Lease agreement not found or unauthorized." }, { status: 404 });
+    }
+
+    if (propertyId !== undefined || propertyName !== undefined || property !== undefined) {
+      let requestedPropertyName = String(propertyName || property || existing.propertyName).trim();
+      const propertyUnitMatch = requestedPropertyName.match(/\((Unit\s*[^)]+)\)$/i);
+      if (propertyUnitMatch) {
+        requestedPropertyName = requestedPropertyName.replace(/\s*\([^)]+\)$/, "").trim();
+        if (unit === undefined) existing.unit = propertyUnitMatch[1].trim();
+      }
+      const linkedProperty = mongoose.Types.ObjectId.isValid(propertyId)
+        ? await Property.findOne({ _id: propertyId, ownerId: existing.ownerId })
+        : propertyId
+          ? null
+          : await Property.findOne({ ownerId: existing.ownerId, name: requestedPropertyName });
+      if (!linkedProperty) {
+        return NextResponse.json(
+          { error: "Select a property in your portfolio. Create it from Properties before updating this lease." },
+          { status: 400 }
+        );
+      }
+      existing.propertyId = linkedProperty._id;
+      existing.propertyName = linkedProperty.name;
     }
 
     // Apply updates
@@ -195,16 +219,10 @@ export async function PATCH(request, { params }) {
     }
 
     if (propertyName !== undefined || property !== undefined) {
-      let finalProp = (propertyName || property || "").trim();
-      if (!finalProp) {
+      const requestedPropertyName = (propertyName || property || "").trim();
+      if (!requestedPropertyName) {
         return NextResponse.json({ error: "Property name cannot be empty." }, { status: 400 });
       }
-      const unitMatch = finalProp.match(/\((Unit\s*[^)]+)\)$/i);
-      if (unitMatch && unit === undefined) {
-        existing.unit = unitMatch[1].trim();
-        finalProp = finalProp.replace(/\s*\([^)]+\)$/, "").trim();
-      }
-      existing.propertyName = finalProp;
     }
 
     if (unit !== undefined) {
@@ -280,6 +298,7 @@ export async function PATCH(request, { params }) {
         tenantName: existing.tenantName,
         tenantEmail: existing.tenantEmail,
         tenantPhone: existing.tenantPhone,
+        propertyId: existing.propertyId?.toString() || null,
         propertyName: existing.propertyName,
         unit: existing.unit,
         property: existing.unit ? `${existing.propertyName} (${existing.unit})` : existing.propertyName,

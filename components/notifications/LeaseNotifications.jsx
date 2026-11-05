@@ -55,6 +55,7 @@ export function LeaseNotifications({ portal }) {
   const [events, setEvents] = useState({});
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [editingPreferences, setEditingPreferences] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -108,6 +109,7 @@ export function LeaseNotifications({ portal }) {
       }
       setEvents(data.preferences.events);
       setMessage("Your notification preferences have been saved.");
+      setEditingPreferences(false);
     } catch (saveError) {
       setError(saveError.message || "Could not save your preferences.");
     } finally {
@@ -178,12 +180,25 @@ export function LeaseNotifications({ portal }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Notification preferences</CardTitle>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            In-app alerts stay on. Choose the events you want and enable email or SMS when those channels are configured.
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Notification preferences</CardTitle>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                In-app alerts stay on. Choose which events you want and enable email or SMS.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-expanded={editingPreferences}
+              onClick={() => setEditingPreferences((current) => !current)}
+            >
+              {editingPreferences ? "Cancel" : "Edit preferences"}
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent>
+        {editingPreferences && <CardContent>
           <form onSubmit={savePreferences} className="space-y-5">
             {visibleEvents.map(({ key, label, hasPeriod }) => {
               const event = events[key];
@@ -253,7 +268,7 @@ export function LeaseNotifications({ portal }) {
               {saving ? "Saving..." : "Save preferences"}
             </Button>
           </form>
-        </CardContent>
+        </CardContent>}
       </Card>
 
       <Card>

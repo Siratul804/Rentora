@@ -21,8 +21,8 @@ export default function Home() {
   return (
     <div className="home-page min-h-screen flex flex-col bg-transparent text-zinc-100 selection:bg-emerald-500/20 selection:text-emerald-400">
       {/* Top Navbar */}
-      <header className="home-header h-20 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50 px-6 sm:px-12 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <header className="home-header min-h-20 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl sticky top-0 z-50 px-4 sm:px-12 py-3 sm:py-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {/*
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-emerald-500/20">
             R
@@ -33,24 +33,24 @@ export default function Home() {
               alt="Rentora Logo"
               width={38}
               height={40}
-              className="h-10 w-auto rounded-2xl"
+              className="h-10 w-auto shrink-0 rounded-2xl"
           />
           <span className="text-xl font-bold tracking-tight text-white">
             Rentora
           </span>
-          <Badge variant="purple" size="sm" className="hidden sm:inline-flex ml-2">
+          <Badge variant="purple" size="sm" className="shrink-0 whitespace-nowrap leading-none">
             Multi-Tenant SaaS
           </Badge>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-3 sm:shrink-0">
           <Link
             href="/login"
-            className="text-xs font-semibold px-4 py-2 text-zinc-300 hover:text-white transition-colors"
+            className="whitespace-nowrap px-4 py-2 text-xs font-semibold text-zinc-300 transition-colors hover:text-white dark:rounded-xl dark:border dark:border-white/15 dark:bg-zinc-950/75 dark:text-zinc-100 dark:shadow-sm dark:backdrop-blur-md dark:hover:bg-zinc-900/90"
           >
             Sign In
           </Link>
-          <Link href="/register">
+          <Link href="/register" className="shrink-0 whitespace-nowrap">
             <Button size="sm" variant="primary">
               Get Started
             </Button>

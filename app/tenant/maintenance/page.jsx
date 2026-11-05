@@ -64,7 +64,11 @@ export default function TenantMaintenancePage() {
       setRequests((current) => [mapRequest(data.request), ...current]);
       setTitle("");
       setDescription("");
-      setSuccess("Request submitted. Your property owner can now see it.");
+      setSuccess(
+        data.notificationWarning
+          ? `Request submitted.${data.notificationWarning}`
+          : "Request submitted. Your property owner can now see it."
+      );
     } catch (submitError) {
       setError(submitError.message || "Failed to submit your service request.");
     } finally {

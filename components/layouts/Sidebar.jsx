@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   BarChart3,
@@ -75,11 +75,18 @@ const PORTAL_META = {
   },
 };
 
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "rentora-sidebar-collapsed";
+
 export function Sidebar({ portal = "owner" }) {
   const pathname = usePathname();
   const navItems = PORTAL_NAV_ITEMS[portal] || [];
   const meta = PORTAL_META[portal] || PORTAL_META.owner;
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true");
+  }, []);
+
   const widthClass = collapsed ? "w-16" : "w-16 sm:w-64";
 
   return (
@@ -109,7 +116,11 @@ export function Sidebar({ portal = "owner" }) {
             </Link>
             <button
               type="button"
-              onClick={() => setCollapsed((value) => !value)}
+              onClick={() => setCollapsed((value) => {
+                const nextValue = !value;
+                localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(nextValue));
+                return nextValue;
+              })}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 sm:flex"
@@ -119,7 +130,10 @@ export function Sidebar({ portal = "owner" }) {
             {collapsed && (
               <button
                 type="button"
-                onClick={() => setCollapsed(false)}
+                onClick={() => {
+                  localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, "false");
+                  setCollapsed(false);
+                }}
                 aria-label="Expand sidebar"
                 title="Expand sidebar"
                 className="absolute left-9 top-4 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-zinc-500 shadow dark:bg-zinc-900 dark:text-zinc-400 sm:hidden"

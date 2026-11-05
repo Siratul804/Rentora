@@ -48,8 +48,8 @@ export async function GET() {
       notifications: notifications.map((notification) => ({
         ...notification,
         _id: notification._id.toString(),
-        tenantId: notification.tenantId.toString(),
-        invoiceId: notification.invoiceId.toString(),
+        tenantId: notification.tenantId?.toString() || null,
+        invoiceId: notification.invoiceId?.toString() || null,
       })),
     });
   } catch (error) {

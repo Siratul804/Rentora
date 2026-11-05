@@ -54,7 +54,6 @@ export default function AdminServiceProvidersPage() {
       ),
     },
     { header: "Property / Unit", accessor: (row) => [row.property, row.unit].filter(Boolean).join(" · ") || "—" },
-    { header: "Service Provider", accessor: (row) => row.provider || "Unassigned" },
     {
       header: "Status",
       accessor: (row) => (
@@ -73,7 +72,7 @@ export default function AdminServiceProvidersPage() {
     <DashboardShell
       portal="admin"
       title="Service Providers & Dispatch Fleet"
-      subtitle="View assigned service providers, properties, and maintenance request status"
+      subtitle="View maintenance requests, properties, and request status"
     >
       <Card>
         <CardHeader>

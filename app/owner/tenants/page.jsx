@@ -192,7 +192,11 @@ export default function OwnerTenantsPage() {
 
         setModalOpen(false);
         setEditingTenant(null);
-        setSuccessNotice(`Tenant "${formData.name}" details updated successfully!`);
+        setSuccessNotice(
+          data.passwordUpdated
+            ? `Tenant "${formData.name}" details updated and password changed successfully.`
+            : `Tenant "${formData.name}" details updated successfully!`
+        );
         fetchTenants();
       } else {
         // Add Tenant flow: uses existing POST /api/owner/tenants
@@ -225,10 +229,10 @@ export default function OwnerTenantsPage() {
     }
   };
 
-  // Safe Deactivate Tenant handler (No permanent record deletion)
+  // Deactivate the account and remove it from this active tenant list.
   const handleDeactivateTenant = async (id, name) => {
     const confirmed = window.confirm(
-      `Are you sure you want to deactivate tenant "${name}"? Their portal access will be suspended without permanently deleting their tenancy record.`
+      `Are you sure you want to deactivate tenant "${name}"? They will lose portal access and be removed from this tenant list.`
     );
     if (!confirmed) return;
 
@@ -236,20 +240,12 @@ export default function OwnerTenantsPage() {
       const res = await fetch(`/api/owner/tenants/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rentStatus: "Inactive", status: "Inactive" }),
+        body: JSON.stringify({ isActive: false }),
       });
 
-      // Check if teammate's deactivation endpoint is available
-      if (res.status === 404 || res.status === 405) {
-        alert(
-          `The Deactivate Tenant backend endpoint (PATCH /api/owner/tenants/[id]) is pending teammate implementation. The record for "${name}" was NOT deleted.`
-        );
-        return;
-      }
-
       if (res.ok) {
+        setTenants((current) => current.filter((tenant) => tenant.id !== id));
         setSuccessNotice(`Tenant "${name}" has been deactivated.`);
-        fetchTenants();
       } else {
         const data = await res.json().catch(() => null);
         alert(data?.error || "Failed to deactivate tenant.");
