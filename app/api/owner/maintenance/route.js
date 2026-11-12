@@ -1,0 +1,254 @@
+
+import { NextResponse } from "next/server";
+import mongoose from "mongoose";
+import dbConnect from "@/lib/dbConnect";
+import MaintenanceRequest from "@/lib/models/MaintenanceRequest";
+import User from "@/lib/models/User";
+import { getServerSession } from "@/lib/session";
+import { ROLES } from "@/lib/auth";
+import { createNotification } from "@/lib/notificationDelivery";
+
+export async function GET() {
+  try {
+    const session = await getServerSession();
+
+    if (!session || session.role !== ROLES.OWNER) {
+      return NextResponse.json(
+        { error: "Unauthorized. Only property owners can access maintenance requests." },
+        { status: 403 }
+      );
+    }
+
+    await dbConnect();
+
+    const owner = mongoose.isValidObjectId(session.id)
+      ? await User.findOne({ _id: session.id, role: ROLES.OWNER }).select("_id")
+      : null;
+    if (!owner) {
+      return NextResponse.json({ error: "Owner account not found." }, { status: 403 });
+    }
+
+    const query = { ownerId: owner._id, status: { $ne: "Closed" } };
+
+    const requests = await MaintenanceRequest.find(query)
+      .populate("tenantId", "name")
+      .populate("propertyId", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return NextResponse.json({
+      success: true,
+      requests: requests.map((item) => ({
+        id: item._id.toString(),
+        title: item.title,
+        description: item.description || "",
+        category: item.category || "Other",
+        priority: item.priority || "Medium",
+        status: item.status || "Pending",
+        assignedTo: item.assignedTo || "Unassigned",
+        property: item.propertyId?.name || "",
+        unit: item.unit || "N/A",
+        tenant: item.tenantId
+          ? { name: item.tenantId.name || "Tenant" }
+          : { name: "Tenant not assigned" },
+        createdAt: item.createdAt,
+        activityHistory: item.activityHistory || [],
+      })),
+    });
+  } catch (error) {
+    console.error("Fetch maintenance requests error:", error);
+
+    return NextResponse.json(
+      { error: "Failed to fetch maintenance requests." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request) {
+  try {
+    const session = await getServerSession();
+
+    if (!session || session.role !== ROLES.OWNER) {
+      return NextResponse.json(
+        { error: "Unauthorized. Only property owners can update maintenance requests." },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { id, assignedTo, status } = body;
+
+    if (!id || !mongoose.isValidObjectId(id)) {
+      return NextResponse.json(
+        { error: "Invalid maintenance request ID." },
+        { status: 400 }
+      );
+    }
+
+    const allowedStatuses = [
+      "Pending",
+      "Assigned",
+      "Dispatched",
+      "In Progress",
+      "Done",
+      "Resolved",
+      "Closed",
+    ];
+
+    if (
+      status !== undefined &&
+      !allowedStatuses.includes(status)
+    ) {
+      return NextResponse.json(
+        { error: "Invalid maintenance status." },
+        { status: 400 }
+      );
+    }
+
+    if (
+      assignedTo !== undefined &&
+      (typeof assignedTo !== "string" || !assignedTo.trim())
+    ) {
+      return NextResponse.json(
+        { error: "Invalid technician assignment." },
+        { status: 400 }
+      );
+    }
+
+    await dbConnect();
+
+    if (!mongoose.isValidObjectId(session.id)) {
+      return NextResponse.json({ error: "Invalid owner session." }, { status: 403 });
+    }
+
+    const query = { _id: id, ownerId: session.id };
+
+    const maintenanceRequest = await MaintenanceRequest.findOne(query);
+
+    if (!maintenanceRequest) {
+      return NextResponse.json(
+        { error: "Maintenance request not found." },
+        { status: 404 }
+      );
+    }
+
+    const changes = [];
+
+    if (
+      assignedTo !== undefined &&
+      maintenanceRequest.assignedTo !== assignedTo.trim()
+    ) {
+      maintenanceRequest.assignedTo = assignedTo.trim();
+
+      changes.push({
+        action: "Technician assignment updated",
+        details:
+          assignedTo.trim() === "Unassigned"
+            ? "Technician assignment removed."
+            : `Technician assigned: ${assignedTo.trim()}`,
+        performedBy: mongoose.isValidObjectId(session.id)
+          ? session.id
+          : null,
+        createdAt: new Date(),
+      });
+    }
+
+    if (
+      status !== undefined &&
+      maintenanceRequest.status !== status
+    ) {
+      maintenanceRequest.status = status;
+      maintenanceRequest.completedAt =
+        ["Done", "Resolved", "Closed"].includes(status) ? new Date() : null;
+
+      changes.push({
+        action: "Status updated",
+        details: `Status updated to ${status}.`,
+        performedBy: mongoose.isValidObjectId(session.id)
+          ? session.id
+          : null,
+        createdAt: new Date(),
+      });
+    }
+
+    if (changes.length > 0) {
+      maintenanceRequest.activityHistory.push(...changes);
+      await maintenanceRequest.save();
+
+      let owner = null;
+      try {
+        owner = await User.findOne({
+          _id: maintenanceRequest.ownerId,
+          role: ROLES.OWNER,
+          isActive: { $ne: false },
+        });
+        if (owner) {
+          await createNotification({
+            recipient: owner,
+            ownerId: owner._id,
+            tenantId: maintenanceRequest.tenantId,
+            maintenanceRequestId: maintenanceRequest._id,
+            type: "maintenance-updated",
+            title: "Maintenance request updated",
+            message: `"${maintenanceRequest.title}" is now ${maintenanceRequest.status}${maintenanceRequest.assignedTo !== "Unassigned" ? ` and assigned to ${maintenanceRequest.assignedTo}` : ""}.`,
+            details: {
+              maintenanceTitle: maintenanceRequest.title,
+              maintenanceStatus: maintenanceRequest.status,
+              category: maintenanceRequest.category,
+              unit: maintenanceRequest.unit || "",
+            },
+          });
+        }
+      } catch (error) {
+        console.error("Notify owner about maintenance request update error:", error);
+      }
+
+      if (maintenanceRequest.tenantId) {
+        try {
+          const tenant = await User.findOne({
+            _id: maintenanceRequest.tenantId,
+            role: "tenant",
+            isActive: { $ne: false },
+          });
+          if (tenant) {
+            await createNotification({
+              recipient: tenant,
+              ownerId: owner?._id || maintenanceRequest.ownerId,
+              tenantId: tenant._id,
+              maintenanceRequestId: maintenanceRequest._id,
+              type: "maintenance-updated",
+              title: "Maintenance request updated",
+              message: `"${maintenanceRequest.title}" is now ${maintenanceRequest.status}${maintenanceRequest.assignedTo !== "Unassigned" ? ` and assigned to ${maintenanceRequest.assignedTo}` : ""}.`,
+              details: {
+                maintenanceTitle: maintenanceRequest.title,
+                maintenanceStatus: maintenanceRequest.status,
+                category: maintenanceRequest.category,
+                unit: maintenanceRequest.unit || "",
+              },
+            });
+          }
+        } catch (error) {
+          console.error("Notify tenant about maintenance request update error:", error);
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Maintenance request updated successfully.",
+      request: {
+        id: maintenanceRequest._id.toString(),
+        assignedTo: maintenanceRequest.assignedTo,
+        status: maintenanceRequest.status,
+      },
+    });
+  } catch (error) {
+    console.error("Update maintenance request error:", error);
+
+    return NextResponse.json(
+      { error: "Failed to update maintenance request." },
+      { status: 500 }
+    );
+  }
+}

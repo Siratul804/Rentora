@@ -64,7 +64,15 @@ export function useAuth() {
       const data = await res.json();
 
       if (!res.ok) {
-        return { success: false, error: data.error || "Login failed" };
+        return {
+          success: false,
+          error: data.error || "Login failed",
+          requiresPayment: data.requiresPayment,
+          email: data.email,
+          name: data.name,
+          phone: data.phone,
+          amount: data.amount,
+        };
       }
 
       setUser(data.user);
@@ -95,6 +103,14 @@ export function useAuth() {
 
       if (!res.ok) {
         return { success: false, error: data.error || "Registration failed" };
+      }
+
+      if (data.requiresPayment && data.gatewayUrl) {
+        return {
+          success: true,
+          requiresPayment: true,
+          gatewayUrl: data.gatewayUrl,
+        };
       }
 
       setUser(data.user);

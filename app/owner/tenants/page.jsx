@@ -7,28 +7,36 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { DataTable } from "@/components/tables/DataTable";
+import { propertiesApi } from "@/lib/api";
 
 export default function OwnerTenantsPage() {
   const [tenants, setTenants] = useState([]);
+  const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingTenant, setEditingTenant] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [successNotice, setSuccessNotice] = useState("");
   const [createdTenantInfo, setCreatedTenantInfo] = useState(null);
 
   // Form State
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    password: "tenant" + Math.floor(1000 + Math.random() * 9000),
+    password: "",
     phone: "",
-    property: "Green Horizon Residency",
-    unit: "Unit 101",
-    leaseEnd: "2027-12-31",
+    property: "",
+    unit: "",
+    rentAmount: "32000",
+    deposit: "64000",
+    leaseStart: "",
+    leaseEnd: "",
     rentStatus: "Pending",
   });
 
+  // 1. Fetch tenants list
   const fetchTenants = useCallback(async () => {
     setLoading(true);
     try {
@@ -46,71 +54,204 @@ export default function OwnerTenantsPage() {
     }
   }, []);
 
+  // 2. Fetch owner's properties for property dropdown
+  const fetchProperties = useCallback(async () => {
+    try {
+      const data = await propertiesApi.getAll();
+      if (data?.properties && data.properties.length > 0) {
+        setProperties(data.properties);
+      }
+    } catch (err) {
+      console.error("Failed to load properties for tenant assignment:", err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTenants();
-  }, [fetchTenants]);
+    fetchProperties();
+  }, [fetchTenants, fetchProperties]);
 
-  const handleOpenModal = () => {
+  // Open modal in "Add New Tenant" mode
+  const handleOpenAddModal = () => {
     setFormError("");
+    setSuccessNotice("");
     setCreatedTenantInfo(null);
+    setEditingTenant(null);
+
+    const defaultProp = properties[0]?.name || "Green Horizon Residency";
+    const defaultUnit = "Unit " + Math.floor(10 + Math.random() * 80) + "A";
+
     setFormData({
       name: "",
       email: "",
       password: "tenant" + Math.floor(1000 + Math.random() * 9000),
       phone: "",
-      property: "Green Horizon Residency",
-      unit: "Unit " + Math.floor(10 + Math.random() * 80) + "A",
-      leaseEnd: "2027-12-31",
+      property: defaultProp,
+      unit: defaultUnit,
+      rentAmount: "32000",
+      deposit: "64000",
+      leaseStart: "",
+      leaseEnd: "",
       rentStatus: "Pending",
     });
     setModalOpen(true);
   };
 
+  // Open modal in "Edit Tenant" mode
+  const handleOpenEditModal = (tenant) => {
+    setFormError("");
+    setSuccessNotice("");
+    setCreatedTenantInfo(null);
+    setEditingTenant(tenant);
+
+    setFormData({
+      name: tenant.name || "",
+      email: tenant.email || "",
+      password: "", // Optional during edit
+      phone: tenant.phone === "—" ? "" : tenant.phone || "",
+      property: tenant.property === "Not Assigned" ? (properties[0]?.name || "") : tenant.property || "",
+      unit: tenant.unit === "Not Assigned" ? "" : tenant.unit || "",
+      rentAmount: tenant.rentAmount !== undefined ? String(tenant.rentAmount) : "32000",
+      deposit: tenant.deposit !== undefined ? String(tenant.deposit) : "64000",
+      leaseStart: tenant.leaseStart || "",
+      leaseEnd: tenant.leaseEnd === "—" ? "" : tenant.leaseEnd || "",
+      rentStatus: tenant.rentStatus || "Pending",
+    });
+    setModalOpen(true);
+  };
+
+  // Submit handler (Add or Edit)
   const handleSubmitTenant = async (e) => {
     e.preventDefault();
     setFormError("");
+    setSuccessNotice("");
     setSubmitting(true);
 
-    try {
-      const res = await fetch("/api/owner/tenants", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+    const chosenProperty = (formData.property || "").trim();
+    const chosenUnit = (formData.unit || "").trim().toLowerCase();
+
+    // Validation: Prevent assigning an already occupied unit in the same property
+    if (chosenProperty && chosenUnit) {
+      const occupiedConflict = tenants.find((t) => {
+        const isSameProp = (t.property || "").trim().toLowerCase() === chosenProperty.toLowerCase();
+        const isSameUnit = (t.unit || "").trim().toLowerCase() === chosenUnit;
+        const isDifferentTenant = editingTenant ? t.id !== editingTenant.id : true;
+        const isActive = t.rentStatus !== "Inactive" && t.status !== "Inactive";
+        return isSameProp && isSameUnit && isDifferentTenant && isActive;
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        setFormError(data.error || "Failed to onboard tenant");
+      if (occupiedConflict) {
+        setFormError(
+          `Unit "${formData.unit.trim()}" in "${chosenProperty}" is already occupied by ${occupiedConflict.name}. Please select an available unit.`
+        );
+        setSubmitting(false);
         return;
       }
+    }
 
-      setCreatedTenantInfo({
-        name: data.tenant.name,
-        email: data.tenant.email,
-        password: formData.password,
-      });
+    try {
+      if (editingTenant) {
+        // Edit Tenant flow: dispatch to backend update endpoint
+        const updatePayload = {
+          name: formData.name.trim(),
+          phone: formData.phone.trim(),
+          property: formData.property.trim(),
+          unit: formData.unit.trim(),
+          rentAmount: Number(formData.rentAmount) || 0,
+          deposit: Number(formData.deposit) || 0,
+          leaseStart: formData.leaseStart,
+          leaseEnd: formData.leaseEnd,
+          rentStatus: formData.rentStatus,
+        };
 
-      // Refresh list
-      fetchTenants();
+        if (formData.password) {
+          updatePayload.password = formData.password;
+        }
+
+        const res = await fetch(`/api/owner/tenants/${editingTenant.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        });
+
+        // Check if teammate's endpoint is available
+        if (res.status === 404 || res.status === 405) {
+          setFormError(
+            "The Edit Tenant backend endpoint (PATCH /api/owner/tenants/[id]) is pending teammate implementation. Changes were not saved to the database."
+          );
+          setSubmitting(false);
+          return;
+        }
+
+        const data = await res.json();
+        if (!res.ok) {
+          setFormError(data.error || "Failed to update tenant details.");
+          setSubmitting(false);
+          return;
+        }
+
+        setModalOpen(false);
+        setEditingTenant(null);
+        setSuccessNotice(
+          data.passwordUpdated
+            ? `Tenant "${formData.name}" details updated and password changed successfully.`
+            : `Tenant "${formData.name}" details updated successfully!`
+        );
+        fetchTenants();
+      } else {
+        // Add Tenant flow: uses existing POST /api/owner/tenants
+        const res = await fetch("/api/owner/tenants", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formData),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          setFormError(data.error || "Failed to onboard tenant");
+          setSubmitting(false);
+          return;
+        }
+
+        setCreatedTenantInfo({
+          name: data.tenant.name,
+          email: data.tenant.email,
+          password: formData.password,
+        });
+
+        setModalOpen(false);
+        fetchTenants();
+      }
     } catch {
-      setFormError("Network error while creating tenant.");
+      setFormError("Network error while communicating with the server.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDeleteTenant = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to remove tenant "${name}"?`)) return;
+  // Deactivate the account and remove it from this active tenant list.
+  const handleDeactivateTenant = async (id, name) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to deactivate tenant "${name}"? They will lose portal access and be removed from this tenant list.`
+    );
+    if (!confirmed) return;
+
     try {
-      const res = await fetch(`/api/owner/tenants/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/owner/tenants/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: false }),
+      });
+
       if (res.ok) {
-        setTenants((prev) => prev.filter((t) => t.id !== id));
+        setTenants((current) => current.filter((tenant) => tenant.id !== id));
+        setSuccessNotice(`Tenant "${name}" has been deactivated.`);
       } else {
-        const data = await res.json();
-        alert(data.error || "Failed to delete tenant");
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "Failed to deactivate tenant.");
       }
     } catch (e) {
-      alert("Error deleting tenant: " + e.message);
+      alert("Error contacting server: " + e.message);
     }
   };
 
@@ -118,67 +259,110 @@ export default function OwnerTenantsPage() {
     (t) =>
       t.name.toLowerCase().includes(search.toLowerCase()) ||
       t.email.toLowerCase().includes(search.toLowerCase()) ||
-      (t.unit && t.unit.toLowerCase().includes(search.toLowerCase()))
+      (t.unit && t.unit.toLowerCase().includes(search.toLowerCase())) ||
+      (t.property && t.property.toLowerCase().includes(search.toLowerCase()))
   );
 
   const columns = [
     {
       header: "Tenant",
+      className: "min-w-[220px]",
       accessor: (row) => (
         <div>
-          <div className="font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</div>
-          <div className="text-xs text-zinc-400">{row.email}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{row.name}</span>
+            {row.isActive === false && (
+              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                Inactive
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{row.email}</div>
         </div>
       ),
     },
     {
       header: "Assigned Unit",
+      className: "min-w-[180px]",
       accessor: (row) => (
         <div>
-          <div className="font-medium text-zinc-800 dark:text-zinc-200">{row.unit}</div>
-          <div className="text-[11px] text-zinc-400">{row.property}</div>
+          <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200">{row.unit}</div>
+          <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">{row.property}</div>
         </div>
       ),
     },
     {
       header: "Phone",
+      className: "whitespace-nowrap",
       accessor: (row) => row.phone || "—",
     },
     {
       header: "Lease Expiry",
+      className: "whitespace-nowrap",
       accessor: (row) => row.leaseEnd || "—",
     },
     {
       header: "Rent Status",
+      className: "whitespace-nowrap",
       accessor: (row) => (
-        <Badge
-          variant={row.rentStatus === "Paid" ? "success" : row.rentStatus === "Overdue" ? "danger" : "warning"}
-          size="sm"
-        >
-          {row.rentStatus}
-        </Badge>
+        <div>
+          <Badge
+            variant={
+              row.rentStatus === "Paid"
+                ? "success"
+                : row.rentStatus === "Overdue"
+                ? "danger"
+                : row.rentStatus === "Inactive"
+                ? "neutral"
+                : "warning"
+            }
+            size="sm"
+          >
+            {row.rentStatus}
+          </Badge>
+          {row.rentAmount > 0 && (
+            <div className="text-[11px] text-zinc-500 font-medium mt-0.5">
+              ৳ {Number(row.rentAmount).toLocaleString()}
+            </div>
+          )}
+        </div>
       ),
     },
     {
       header: "RBAC Status",
-      accessor: () => (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-          Can Log In
-        </span>
-      ),
+      accessor: (row) =>
+        row.rentStatus === "Inactive" || row.status === "Inactive" ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-zinc-500/10 text-zinc-500 border border-zinc-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+            Inactive
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            Can Log In
+          </span>
+        ),
     },
     {
       header: "Actions",
+      className: "min-w-[260px]",
       accessor: (row) => (
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1">
           <Button
             size="sm"
             variant="ghost"
-            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-            onClick={() => handleDeleteTenant(row.id, row.name)}
+            className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-xs px-2.5 h-7 font-medium"
+            onClick={() => handleOpenEditModal(row)}
           >
-            Remove
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-amber-600 hover:text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-xs px-2.5 h-7 font-medium"
+            onClick={() => handleDeactivateTenant(row.id, row.name)}
+          >
+            Deactivate
           </Button>
         </div>
       ),
@@ -191,12 +375,28 @@ export default function OwnerTenantsPage() {
       title="Tenants Directory"
       subtitle="Onboard tenants, assign units, and issue login credentials for the Tenant Portal"
       actions={
-        <Button variant="primary" size="md" onClick={handleOpenModal}>
+        <Button variant="primary" size="md" onClick={handleOpenAddModal}>
           + Onboard New Tenant
         </Button>
       }
     >
-      {/* Newly Created Tenant Alert */}
+      {/* Success Notification Alert */}
+      {successNotice && (
+        <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-medium text-sm">
+            <span>🎉</span>
+            <span>{successNotice}</span>
+          </div>
+          <button
+            onClick={() => setSuccessNotice("")}
+            className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Newly Created Tenant Credentials Alert */}
       {createdTenantInfo && (
         <div className="mb-6 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200">
           <div className="flex items-center justify-between">
@@ -262,7 +462,7 @@ export default function OwnerTenantsPage() {
                   : "As an owner, you can onboard tenants by clicking the button below. Once onboarded, they can sign in with their assigned email and password."}
               </p>
               {!search && (
-                <Button variant="primary" size="sm" onClick={handleOpenModal}>
+                <Button variant="primary" size="sm" onClick={handleOpenAddModal}>
                   + Onboard First Tenant
                 </Button>
               )}
@@ -273,22 +473,27 @@ export default function OwnerTenantsPage() {
         </CardContent>
       </Card>
 
-      {/* Onboard Tenant Modal */}
+      {/* Tenant Modal (Add & Edit) */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-zinc-200 dark:border-zinc-800">
               <div>
                 <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                  Onboard New Tenant
+                  {editingTenant ? "Edit Tenant Details" : "Onboard New Tenant"}
                 </h2>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Create tenant account & assign unit credentials
+                  {editingTenant
+                    ? `Update tenancy details and unit assignment for ${editingTenant.name}`
+                    : "Create tenant account & assign unit credentials"}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
+                onClick={() => {
+                  setModalOpen(false);
+                  setEditingTenant(null);
+                }}
                 className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-800 flex items-center justify-center text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
                 ✕
@@ -314,24 +519,26 @@ export default function OwnerTenantsPage() {
                   label="Email Address (Login ID) *"
                   type="email"
                   required
+                  disabled={!!editingTenant}
                   placeholder="e.g. farhan@gmail.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  helperText={editingTenant ? "Email cannot be changed (primary login ID)" : undefined}
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Input
-                    label="Assign Login Password *"
-                    type="text"
-                    required
-                    placeholder="Temporary password"
+                    label={editingTenant ? "Change Password (Optional)" : "Assign Login Password *"}
+                    type="password"
+                    required={!editingTenant}
+                    placeholder={editingTenant ? "Leave blank to keep current password" : "Temporary password"}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   />
                   <div className="text-[11px] text-zinc-400">
-                    Tenant will log in using this password
+                    {editingTenant ? "Only enter if resetting tenant password" : "Tenant will log in using this password"}
                   </div>
                 </div>
 
@@ -344,21 +551,69 @@ export default function OwnerTenantsPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Property Selection using real properties API */}
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                    Assigned Property *
+                  </label>
+                  {properties.length > 0 ? (
+                    <select
+                      className="w-full h-10 px-3.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      value={formData.property}
+                      onChange={(e) => setFormData({ ...formData, property: e.target.value })}
+                      required
+                    >
+                      {properties.map((prop) => (
+                        <option key={prop.id} value={prop.name}>
+                          {prop.name} ({prop.type})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Input
+                      placeholder="e.g. Green Horizon Residency"
+                      value={formData.property}
+                      onChange={(e) => setFormData({ ...formData, property: e.target.value })}
+                      required
+                    />
+                  )}
+                </div>
+
+                <div>
+                  <Input
+                    label="Unit Number *"
+                    required
+                    placeholder="e.g. Unit 4B"
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input
-                  label="Assigned Property"
-                  placeholder="e.g. Green Horizon Residency"
-                  value={formData.property}
-                  onChange={(e) => setFormData({ ...formData, property: e.target.value })}
+                  label="Monthly Rent (৳)"
+                  type="number"
+                  placeholder="32000"
+                  value={formData.rentAmount}
+                  onChange={(e) => setFormData({ ...formData, rentAmount: e.target.value })}
                 />
                 <Input
-                  label="Unit Number"
-                  placeholder="e.g. Unit 4B"
-                  value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                  label="Security Deposit (৳)"
+                  type="number"
+                  placeholder="64000"
+                  value={formData.deposit}
+                  onChange={(e) => setFormData({ ...formData, deposit: e.target.value })}
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="Lease Start Date"
+                  type="date"
+                  value={formData.leaseStart}
+                  onChange={(e) => setFormData({ ...formData, leaseStart: e.target.value })}
+                />
                 <Input
                   label="Lease Expiration Date"
                   type="date"
@@ -367,7 +622,7 @@ export default function OwnerTenantsPage() {
                 />
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                    Initial Rent Status
+                    Rent Status
                   </label>
                   <select
                     className="w-full h-10 px-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-xs text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -377,6 +632,7 @@ export default function OwnerTenantsPage() {
                     <option value="Paid">Paid</option>
                     <option value="Pending">Pending</option>
                     <option value="Overdue">Overdue</option>
+                    <option value="Inactive">Inactive</option>
                   </select>
                 </div>
               </div>
@@ -386,7 +642,10 @@ export default function OwnerTenantsPage() {
                   type="button"
                   variant="outline"
                   size="md"
-                  onClick={() => setModalOpen(false)}
+                  onClick={() => {
+                    setModalOpen(false);
+                    setEditingTenant(null);
+                  }}
                 >
                   Cancel
                 </Button>
@@ -396,7 +655,13 @@ export default function OwnerTenantsPage() {
                   size="md"
                   disabled={submitting}
                 >
-                  {submitting ? "Onboarding..." : "Save & Create Tenant Account"}
+                  {submitting
+                    ? editingTenant
+                      ? "Saving Changes..."
+                      : "Onboarding..."
+                    : editingTenant
+                    ? "Save Changes"
+                    : "Save & Create Tenant Account"}
                 </Button>
               </div>
             </form>
