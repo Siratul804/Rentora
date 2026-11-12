@@ -166,41 +166,6 @@ export default function TenantPaymentsPage() {
         </p>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invoice notifications ({notifications.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p role="status" className="text-sm text-zinc-500">Loading notifications...</p>
-          ) : notifications.length === 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">You don’t have any invoice notifications yet.</p>
-          ) : (
-            <ul className="space-y-3">
-              {notifications.map((notification) => (
-                <li
-                  key={notification._id}
-                  className={`rounded-xl border p-4 ${
-                    notification.readAt
-                      ? "border-zinc-200 dark:border-zinc-800"
-                      : "border-emerald-300 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/20"
-                  }`}
-                >
-                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">{notification.title}</h3>
-                      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{notification.message}</p>
-                    </div>
-                    <time className="shrink-0 text-xs text-zinc-500" dateTime={notification.createdAt}>
-                      {formatDate(notification.createdAt)}
-                    </time>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
